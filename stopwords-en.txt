@@ -1,3 +1,5 @@
+chorus
+verse
 'll
 'tis
 'twas

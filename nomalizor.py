@@ -4,9 +4,9 @@ from nltk.stem import WordNetLemmatizer
 
 
 # 下载必要的nltk数据
-nltk.download('punkt')
-nltk.download('stopwords')
-nltk.download('wordnet')
+# nltk.download('punkt')
+# nltk.download('stopwords')
+# nltk.download('wordnet')
 
 
 # 定义函数读取自定义停用词列表
@@ -35,7 +35,10 @@ def preprocess_lyrics(lyrics):
 
 
 
-
-
+if __name__ == "__main__":
+    
+    lyric1 = "What people do for money Anything for that green What people do for money It's a scam, it's a scheme What people do for money Anything for that green"
+    processed_lyrics = preprocess_lyrics([lyric1,lyric1,lyric1,lyric1])
+    print(processed_lyrics)
 
 

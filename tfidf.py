@@ -100,7 +100,6 @@ def load_mongo_and_train(N=10):
     
     return tfidf_matrix, top_similarities_per_doc, feature_names, doc_ids, vectorizer, tfidf_df, top_keywords_per_doc
 
-
 def load_from_file():
     try:
         # 加载 TF-IDF 矩阵和特征名称
@@ -141,18 +140,7 @@ def load_from_file():
         print(f"Error loading from files: {e}")
         return None
     
-
 def get_similar_documents(doc_id, top_similarities_per_doc):
-    """
-    Get similar documents for a given document ID from top_similarities_per_doc.
-
-    Parameters:
-    - doc_id (str): The document ID to find similarities for.
-    - top_similarities_per_doc (list): List of dictionaries containing document IDs and their top similar documents.
-
-    Returns:
-    - list: List of similar document IDs corresponding to doc_id.
-    """
     similar_documents = []
     for item in top_similarities_per_doc:
         if item['track']['$oid'] == doc_id:
@@ -169,7 +157,13 @@ def get_top_words(doc_id, top_keywords_per_doc):
     return top_words
 
 
-# Example usage
+
+
+
+
+
+
+
 if __name__ == "__main__":
     if os.path.exists('tfidf/tfidf_matrix.pkl') and os.path.exists('tfidf/top_similarities.json') and os.path.exists('tfidf/top_keywords.json') and os.path.exists('tfidf/feature_names.pkl') and os.path.exists('tfidf/doc_ids.pkl') and os.path.exists('tfidf/tfidf_vectorizer.joblib'):
         print("Loading TF-IDF results from files...")
