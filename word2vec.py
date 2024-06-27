@@ -82,7 +82,7 @@ def load_mongo_and_train(N=10):
                      negative=10,
                      alpha=0.025,
                      min_alpha=0.0001,
-                     epochs=1,
+                     epochs=200,
                      callbacks=[epoch_logger],
                      compute_loss=True)
     

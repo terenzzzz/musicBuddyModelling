@@ -101,10 +101,10 @@ def compute_top_k_similar_documents(tfidf_matrix, w2v_matrix, tfidf_weight=0.5, 
 if __name__ == "__main__":
     k = 20
     
-    if os.path.exists(f"top_{k}_weighted_similarities.pkl"):
+    if os.path.exists(f"top_{k}_similarities_for_mongodb.json"):
         print(f"Loading weighted top {k} similarities from files top_{k}_weighted_similarities.pkl")
-        with open(f'top_{k}_weighted_similarities.pkl', 'rb') as f:
-            top_k_weighted_similarities = pickle.load(f)
+        with open(f'top_{k}_similarities_for_mongodb.json', 'rb') as f:
+            top_k_weighted_similarities = json.load(f)
     else:
         print(f"Loading TFIDF matrix and Word2Vec matrix from file and calculating top {k} similarities")
         tfidf_matrix, word2vec_matrix = load_data()
