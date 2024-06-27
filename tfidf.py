@@ -8,6 +8,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import joblib
 import nomalizor
 import json
+from tqdm import tqdm
 
 def load_mongo_and_train(N=10):
     # Connect to MongoDB
@@ -56,9 +57,15 @@ def load_mongo_and_train(N=10):
     
     # Compute top N similarities for each document and save as JSON
     top_similarities_per_doc = []
-    for i, doc_id in enumerate(doc_ids):
+    for i, doc_id in enumerate(tqdm(doc_ids, desc="Preparing JSON for Top Similarities")):
         similar_doc_indices = top_n_similarities[i]
-        similar_docs = [{"$oid": doc_ids[idx]} for idx in similar_doc_indices]
+        similar_docs = [
+            {
+                "$oid": doc_ids[idx],
+                "value": float(cosine_similarities[i, idx])  # 直接从 cosine_similarities 获取值
+            }
+            for idx in similar_doc_indices
+        ]
         doc_data = {
             "track": {"$oid": doc_id},
             "topsimilar": similar_docs
@@ -85,7 +92,7 @@ def load_mongo_and_train(N=10):
     for i, doc_id in enumerate(doc_ids):
         tfidf_vector = tfidf_matrix[i]
         sorted_indices = tfidf_vector.toarray().argsort()[0][::-1][:N]
-        top_keywords = [feature_names[idx] for idx in sorted_indices]
+        top_keywords = [{"word": feature_names[idx], "value": tfidf_vector[0, idx]} for idx in sorted_indices]
         doc_data = {
             "track": {"$oid": doc_id},
             "topwords": top_keywords

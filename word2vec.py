@@ -82,7 +82,7 @@ def load_mongo_and_train(N=10):
                      negative=10,
                      alpha=0.025,
                      min_alpha=0.0001,
-                     epochs=10,
+                     epochs=1,
                      callbacks=[epoch_logger],
                      compute_loss=True)
     
@@ -97,14 +97,21 @@ def load_mongo_and_train(N=10):
     
     # Sort indices to get top N similarities
     top_n_similarities = np.argsort(w2v_similarity_matrix, axis=1)[:, -N-1:-1]
+    print(top_n_similarities[0])
     
     # Prepare top similarities in JSON format for MongoDB
     top_similarities_json = []
     for i, doc in enumerate(tqdm(lyrics_documents, desc="Preparing JSON for Top Similarities")):
-        top_similar_doc_ids = [lyrics_documents[idx]['_id'] for idx in top_n_similarities[i]]
+        top_similar_docs = [
+            {
+                "$oid": str(lyrics_documents[idx]['_id']),
+                "value": float(w2v_similarity_matrix[i, idx])  # 获取相似度值
+            }
+            for idx in top_n_similarities[i]
+        ]
         top_similarities_json.append({
             "track": {"$oid": str(doc['_id'])},
-            "topsimilar": [{"$oid": str(sim_id)} for sim_id in top_similar_doc_ids]
+            "topsimilar": top_similar_docs
         })
         
     # Save doc_id_to_index_map to JSON file
