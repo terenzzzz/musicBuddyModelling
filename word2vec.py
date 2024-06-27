@@ -189,7 +189,7 @@ if __name__ == "__main__":
         
         
         # 查找相似词
-        words_to_find = ['love', 'fuck', 'university', 'nigga']
+        words_to_find = ['love', 'fuck', 'university', 'nigga', 'car']
         for word in words_to_find:
             similar_words = find_most_similar_words(word, w2v_model)
             print(f"Words most similar to '{word}': {similar_words}")
