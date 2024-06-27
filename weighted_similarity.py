@@ -5,6 +5,7 @@ from multiprocessing import Pool, cpu_count
 from sklearn.decomposition import TruncatedSVD
 import faiss
 import os
+import json
 
 def load_data():
     with open('tfidf/tfidf_matrix.pkl', 'rb') as f:
@@ -69,8 +70,31 @@ def compute_top_k_similar_documents(tfidf_matrix, w2v_matrix, tfidf_weight=0.5, 
     for i, similarities in top_k_similarities:
         weighted_similarities[i] = similarities
         
-    with open(f"top_{k}_weighted_similarities.pkl", 'wb') as file:
-        pickle.dump(weighted_similarities, file)
+    # 加载 doc_ids.pkl
+    with open('tfidf/doc_ids.pkl', 'rb') as f:
+        doc_ids = pickle.load(f)
+    
+    # 准备 MongoDB 可导入的 JSON 格式
+    top_similarities_json = []
+    for i in tqdm(range(len(weighted_similarities)), desc="准备 MongoDB JSON"):
+        doc_id = doc_ids[i]
+        top_similar_docs = [
+            {
+                "track": {"$oid": doc_ids[idx]},
+                "value": float(similarity)  # 转换为 float 以确保 JSON 兼容性
+            }
+            for similarity, idx in weighted_similarities[i]
+        ]
+        
+        top_similarities_json.append({
+            "track": {"$oid": doc_id},
+            "topsimilar": top_similar_docs
+        })
+    
+    # 保存为 JSON 文件
+    with open(f"top_{k}_similarities_for_mongodb.json", 'w') as file:
+        json.dump(top_similarities_json, file)
+    print(f"结果已保存为 'top_{k}_similarities_for_mongodb.json'")
     
     return weighted_similarities
 
