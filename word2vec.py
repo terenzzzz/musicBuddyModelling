@@ -7,7 +7,6 @@ from gensim.models import Word2Vec
 import multiprocessing
 from tqdm import tqdm
 import os
-
 import logging
 from gensim.models.callbacks import CallbackAny2Vec
 import time
@@ -16,22 +15,43 @@ class EpochLogger(CallbackAny2Vec):
     def __init__(self):
         self.epoch = 0
         self.start_time = time.time()
-        self.cumulative_loss = 0.0
+        self.previous_loss = None
+        self.loss_log = []
+        self.word_count = 0  # 初始化词计数
 
     def on_epoch_begin(self, model):
         print(f"Epoch {self.epoch + 1} started")
-        self.start_time = time.time()  # 重置开始时间
+        self.start_time = time.time()
 
     def on_epoch_end(self, model):
         self.epoch += 1
         elapsed_time = time.time() - self.start_time
         current_loss = model.get_latest_training_loss()
         
-        # 计算当前 epoch 的实际损失
-        epoch_loss = current_loss - self.cumulative_loss
-        self.cumulative_loss = current_loss
+        if self.previous_loss is None:
+            epoch_loss = current_loss
+        else:
+            epoch_loss = current_loss - self.previous_loss
         
-        print(f"Epoch {self.epoch} finished. Time elapsed: {elapsed_time:.2f} seconds. Loss: {epoch_loss}")
+        self.previous_loss = current_loss
+        
+        # 使用 model.corpus_count 作为总词数
+        self.word_count = model.corpus_count
+        
+        # 计算平均损失
+        avg_loss = epoch_loss / self.word_count if self.word_count > 0 else 0
+        
+        self.loss_log.append(avg_loss)
+        
+        print(f"Epoch {self.epoch} finished. Time elapsed: {elapsed_time:.2f} seconds. Average Loss: {avg_loss:.6f}")
+
+    def plot_loss(self):
+        import matplotlib.pyplot as plt
+        plt.plot(range(1, len(self.loss_log) + 1), self.loss_log)
+        plt.xlabel('Epoch')
+        plt.ylabel('Average Loss')
+        plt.title('Training Loss over Epochs')
+        plt.show()
 
         
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
@@ -44,7 +64,7 @@ def preprocess_documents(documents):
         processed_documents.append(tokens)
     return processed_documents
 
-def load_mongo_and_train(N=10):
+def load_mongo_and_train(N=20, output_dir="word2vec"):
     # Connect to MongoDB
     client = MongoClient('mongodb://localhost:27017/')
     db = client['MusicBuddyVue']
@@ -73,16 +93,16 @@ def load_mongo_and_train(N=10):
     
     # Train Word2Vec model
     w2v_model = Word2Vec(processed_lyrics, 
-                     vector_size=500, 
+                     vector_size=300, 
                      window=10, 
                      min_count=5, 
                      workers=multiprocessing.cpu_count(),
                      sg=1, 
                      hs=1,
-                     negative=10,
+                     negative=8,
                      alpha=0.025,
                      min_alpha=0.0001,
-                     epochs=200,
+                     epochs=250,
                      callbacks=[epoch_logger],
                      compute_loss=True)
     
@@ -104,7 +124,7 @@ def load_mongo_and_train(N=10):
     for i, doc in enumerate(tqdm(lyrics_documents, desc="Preparing JSON for Top Similarities")):
         top_similar_docs = [
             {
-                "$oid": str(lyrics_documents[idx]['_id']),
+                "track": {"$oid": str(lyrics_documents[idx]['_id'])},
                 "value": float(w2v_similarity_matrix[i, idx])  # 获取相似度值
             }
             for idx in top_n_similarities[i]
@@ -114,19 +134,23 @@ def load_mongo_and_train(N=10):
             "topsimilar": top_similar_docs
         })
         
+        
+    # Create output directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+        
     # Save doc_id_to_index_map to JSON file
-    with open('word2vec/doc_id_to_index_map.json', 'w') as f:
+    with open(os.path.join(output_dir, 'doc_id_to_index_map.json'), 'w') as f:
         json.dump(doc_id_to_index_map, f, indent=2)
     
     # Save to JSON
-    with open('word2vec/top_similarities.json', 'w') as f:
+    with open(os.path.join(output_dir, 'top_similarities.json'), 'w') as f:
         json.dump(top_similarities_json, f, indent=2)
 
     # Save song_vectors and w2v_similarity_matrix
-    np.save('word2vec/song_vectors.npy', song_vectors)
+    np.save(os.path.join(output_dir, 'song_vectors.npy'), song_vectors)
 
     # Save w2v_model
-    w2v_model.save('word2vec/w2v_model.model')
+    w2v_model.save(os.path.join(output_dir, 'w2v_model.model'))
 
     return song_vectors, w2v_model, top_similarities_json, doc_id_to_index_map
 
@@ -138,18 +162,18 @@ def get_song_vector(lyrics, model):
     else:
         return np.zeros(model.vector_size)
 
-def load_saved_data():
+def load_saved_data(input_dir="word2vec"):
     # 读取 song_vectors 和 w2v_similarity_matrix
-    loaded_song_vectors = np.load('word2vec/song_vectors.npy')
+    loaded_song_vectors = np.load(os.path.join(input_dir, 'song_vectors.npy'))
 
     # 读取 w2v_model
-    loaded_w2v_model = Word2Vec.load('word2vec/w2v_model.model')
+    loaded_w2v_model = Word2Vec.load(os.path.join(input_dir, 'w2v_model.model'))
 
     # 读取 top_similarities_json
-    with open('word2vec/top_similarities.json', 'r') as f:
+    with open(os.path.join(input_dir, 'top_similarities.json'), 'r') as f:
         loaded_top_similarities_json = json.load(f)
         
-    with open('word2vec/doc_id_to_index_map.json', 'r') as f:
+    with open(os.path.join(input_dir, 'doc_id_to_index_map.json'), 'r') as f:
         doc_id_to_index_map = json.load(f)
 
     return loaded_song_vectors, loaded_w2v_model, loaded_top_similarities_json, doc_id_to_index_map
@@ -174,11 +198,13 @@ def get_vector_by_doc_id(doc_id, doc_id_to_index_map, song_vectors):
     return song_vectors[index]
 
 if __name__ == "__main__":
-    
-    
-    if os.path.exists('word2vec/song_vectors.npy') and os.path.exists('word2vec/w2v_model.model') and os.path.exists('word2vec/top_similarities.json'): 
-        print("Loading word2Vec results from files...")
-        song_vectors, w2v_model, top_similarities_json,doc_id_to_index_map = load_saved_data()
+    input_dir = 'word2vec'  # 或者你保存文件的其他目录
+    if (os.path.exists(os.path.join(input_dir, 'song_vectors.npy')) and
+        os.path.exists(os.path.join(input_dir, 'w2v_model.model')) and
+        os.path.exists(os.path.join(input_dir, 'top_similarities.json')) and
+        os.path.exists(os.path.join(input_dir, 'doc_id_to_index_map.json'))):
+            print("Loading word2Vec results from files...")
+            song_vectors, w2v_model, top_similarities_json,doc_id_to_index_map = load_saved_data()
     else:
         print("Loading data from MongoDB and training Word2Vec model...")
         song_vectors, w2v_model, top_similarities_json, doc_id_to_index_map = load_mongo_and_train()
@@ -196,7 +222,7 @@ if __name__ == "__main__":
         
         
         # 查找相似词
-        words_to_find = ['love', 'fuck', 'university', 'nigga', 'car']
+        words_to_find = ['love', 'university', 'cat', 'car', 'night', 'apple', 'bed']
         for word in words_to_find:
             similar_words = find_most_similar_words(word, w2v_model)
             print(f"Words most similar to '{word}': {similar_words}")
