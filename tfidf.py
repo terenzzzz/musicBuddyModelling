@@ -39,6 +39,7 @@ def load_mongo_and_train(N=20, output_dir="tfidf"):
     
     print("Calculating tf_idf_matrix...")
     tfidf_matrix = vectorizer.fit_transform(processed_lyrics)
+    print("tfidf_matrix shape", tfidf_matrix.shape)
     
     # Calculate cosine similarities
     print("Calculating cosine_similarities...")
@@ -125,6 +126,7 @@ def load_from_file(input_dir="tfidf"):
         # 加载 TF-IDF 矩阵和特征名称
         with open(os.path.join(input_dir, 'tfidf_matrix.pkl'), 'rb') as f:
             tfidf_matrix = pickle.load(f)
+            print("tfidf_matrix shape", tfidf_matrix.shape)
             
         
         with open(os.path.join(input_dir, 'feature_names.pkl'), 'rb') as f:
@@ -182,7 +184,7 @@ if __name__ == "__main__":
         os.path.exists(os.path.join(input_dir, 'top_keywords.json')) and
         os.path.exists(os.path.join(input_dir, 'feature_names.pkl'))and
         os.path.exists(os.path.join(input_dir, 'doc_ids.pkl'))and
-        os.path.exists(os.path.join(input_dir, 'fidf_vectorizer.joblib'))):
+        os.path.exists(os.path.join(input_dir, 'tfidf_vectorizer.joblib'))):
     
     
         print("Loading TF-IDF results from files...")

@@ -214,6 +214,10 @@ if __name__ == "__main__":
     if w2v_model is not None:
         # vocabulary = list(w2v_model.wv.key_to_index.keys())
         
+        song_vectors_matrix = np.array(song_vectors)
+        # 打印矩阵的形状
+        print("song_vectors_matrix shape:", song_vectors_matrix.shape)
+        
         doc_id = '6678efa85e93215877cdfce9'  # 替换为你要查询的文档ID
         doc_vector = get_vector_by_doc_id(doc_id, doc_id_to_index_map, song_vectors)
         if doc_vector is not None:
