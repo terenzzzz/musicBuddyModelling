@@ -1,7 +1,7 @@
 import numpy as np
 from pymongo import MongoClient
 from sklearn.metrics.pairwise import cosine_similarity
-import nomalizor
+from preprocessor import Preprocessor
 import json
 from gensim.models import Word2Vec
 import multiprocessing
@@ -82,8 +82,10 @@ class Word2VecManager:
             print(f"Error fetching documents from MongoDB: {e}")
             return
 
+        preprocessor = Preprocessor()
         lyrics = [doc.get('lyric', '') for doc in lyrics_documents if isinstance(doc.get('lyric', None), str)]
-        processed_lyrics = list(tqdm(nomalizor.preprocess_lyrics(lyrics), desc="Preprocessing Lyrics"))
+        processed_lyrics = list(tqdm(preprocessor.preprocess_lyrics(lyrics), desc="Preprocessing Lyrics"))
+        
         processed_lyrics = self.preprocess_documents(processed_lyrics)
         
         epoch_logger = EpochLogger()

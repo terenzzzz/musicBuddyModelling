@@ -1,5 +1,5 @@
 from pymongo import MongoClient
-import nomalizor
+from preprocessor import Preprocessor
 from tqdm import tqdm
 import gensim
 from gensim import corpora
@@ -11,6 +11,8 @@ import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 import json
 import matplotlib.pyplot as plt
+import numpy as np
+
 
 class LDAModelManager:
     def __init__(self, mongo_uri='mongodb://localhost:27017/', db_name='MusicBuddyVue', collection_name='tracks'):
@@ -22,44 +24,52 @@ class LDAModelManager:
         self.corpus = None
         self.lda_model = None
         self.texts = None
-        self.lyrics_documents = None
+        self.doc_id_to_index_map = None
 
-    def load_mongo_and_train(self, num_topics=10, output_dir='lda'):
+
+    def load_mongo_and_train(self, num_topics=50, output_dir='lda'):
         try:
-            self.lyrics_documents = list(self.collection.find())
-            if not self.lyrics_documents:
+            lyrics_documents = list(self.collection.find())
+            if not lyrics_documents:
                 print("No documents found in MongoDB collection.")
                 return
-            print(f"Found {len(self.lyrics_documents)} documents in MongoDB collection.")
+            print(f"Found {len(lyrics_documents)} documents in MongoDB collection.")
         except Exception as e:
             print(f"Error fetching documents from MongoDB: {e}")
             return
 
-        lyrics = [doc.get('lyric', '') for doc in self.lyrics_documents if isinstance(doc.get('lyric', None), str)]
-        processed_lyrics = list(tqdm(nomalizor.preprocess_lyrics(lyrics), desc="Preprocessing Lyrics"))
+        preprocessor = Preprocessor()
+        lyrics = [doc.get('lyric', '') for doc in lyrics_documents if isinstance(doc.get('lyric', None), str)]
+        processed_lyrics = list(tqdm(preprocessor.preprocess_lyrics(lyrics), desc="Preprocessing Lyrics"))
         self.texts = [word_tokenize(lyric) for lyric in processed_lyrics]
         
         self.dictionary = corpora.Dictionary(self.texts)
         self.corpus = [self.dictionary.doc2bow(text) for text in self.texts]
 
-        print(f"Original document count: {len(self.lyrics_documents)}")
+        print(f"Original document count: {len(lyrics_documents)}")
         print(f"Documents after lyric extraction: {len(lyrics)}")
         print(f"Documents after preprocessing: {len(processed_lyrics)}")
         print(f"Documents after tokenization: {len(self.texts)}")
         print(f"Corpus size: {len(self.corpus)}")
+        
+        doc_ids = [str(doc['_id']) for doc in lyrics_documents]
+        self.doc_id_to_index_map = {doc_id: idx for idx, doc_id in enumerate(doc_ids)}
         
         self.lda_model = gensim.models.ldamodel.LdaModel(
             corpus=self.corpus, 
             num_topics=num_topics, 
             id2word=self.dictionary, 
             alpha='auto', eta='auto', 
-            passes=20
+            passes=10
         )
         
         doc_topic_matrix = self.get_document_topic_matrix(num_topics)
-        top_similarities_json = self.compute_top_similar_songs(doc_topic_matrix, top_n=20)
+        top_similarities_json = self.compute_top_similar_songs(doc_topic_matrix, lyrics_documents, top_n=20)
         
         os.makedirs(output_dir, exist_ok=True)
+        
+        with open(os.path.join(output_dir, 'doc_id_to_index_map.json'), 'w') as f:
+            json.dump(self.doc_id_to_index_map, f, indent=2)
         
         with open(os.path.join(output_dir, 'top_similarities.json'), 'w') as f:
             json.dump(top_similarities_json, f, indent=2)
@@ -73,6 +83,31 @@ class LDAModelManager:
                 f.write(' '.join(text) + '\n')
         
         print(f"Model outputs saved to {output_dir}")
+        
+        
+    def get_song_topics(self, song_id):
+        # 找到歌曲在语料库中的索引
+        index = self.doc_id_to_index_map.get(song_id)
+    
+        # 获取该歌曲的主题分布
+        topic_distribution = self.lda_model[self.corpus[index]]
+    
+        # 按照主题概率排序
+        sorted_topics = sorted(topic_distribution, key=lambda x: x[1], reverse=True)
+    
+        # 返回主题分布和主题词
+        result = []
+        for topic_id, prob in sorted_topics:
+            topic_words = self.lda_model.show_topic(topic_id, topn=10)
+            result.append({
+                'topic_id': int(topic_id),  # 确保 topic_id 是普通的 Python int
+                'probability': float(prob),  # 将 numpy.float32 转换为 Python float
+                'top_words': [word for word, _ in topic_words]
+            })
+    
+        print(result)
+        return result
+    
 
     def evaluate_model(self):
         topic_nums = list(range(10, 101, 5))
@@ -114,6 +149,8 @@ class LDAModelManager:
 
     def load_files(self, input_dir='lda'):
         try:
+            with open(os.path.join(input_dir, 'doc_id_to_index_map.json'), 'r') as f:
+                self.doc_id_to_index_map = json.load(f)
             self.dictionary = corpora.Dictionary.load(os.path.join(input_dir, 'dictionary.gensim'))
             self.corpus = corpora.MmCorpus(os.path.join(input_dir, 'corpus.mm'))
             self.lda_model = gensim.models.ldamodel.LdaModel.load(os.path.join(input_dir, 'lda_model.gensim'))
@@ -148,14 +185,6 @@ class LDAModelManager:
         print("Topic distribution:")
         pprint(sorted(self.lda_model[new_lyric_bow], key=lambda x: x[1], reverse=True))
 
-    def get_most_representative_doc(self):
-        topic_probs = [max(prob, key=lambda x: x[1])[1] for prob in self.lda_model[self.corpus]]
-        most_rep_index = topic_probs.index(max(topic_probs))
-        print(f"Most representative document index: {most_rep_index}")
-        print(f"Probability of its main topic: {max(topic_probs):.4f}")
-        print("Document content:")
-        print(" ".join(self.texts[most_rep_index]))
-        return most_rep_index, max(topic_probs)
 
     def get_document_topic_matrix(self, num_topics):
         doc_topic_matrix = np.zeros((len(self.corpus), num_topics))
@@ -168,7 +197,7 @@ class LDAModelManager:
         print(doc_topic_matrix[:5, :5])
         return doc_topic_matrix
 
-    def compute_top_similar_songs(self, song_topic_matrix, top_n=20):
+    def compute_top_similar_songs(self, song_topic_matrix, lyrics_documents, top_n=20):
         num_songs = song_topic_matrix.shape[0]
         similarities = cosine_similarity(song_topic_matrix)
         top_similarities_json = []
@@ -179,21 +208,25 @@ class LDAModelManager:
             top_similar_indices = np.argsort(song_similarities)[::-1][:top_n]
             top_similar_docs = [
                 {
-                    "track": {"$oid": str(self.lyrics_documents[idx]['_id'])},
+                    "track": {"$oid": str(lyrics_documents[idx]['_id'])},
                     "value": float(song_similarities[idx])
                 }
                 for idx in top_similar_indices
             ]
             top_similarities_json.append({
-                "track": {"$oid": str(self.lyrics_documents[i]['_id'])},
+                "track": {"$oid": str(lyrics_documents[i]['_id'])},
                 "topsimilar": top_similar_docs
             })
 
         return top_similarities_json
+    
+
+    
+    
 
 if __name__ == "__main__":
     lda_manager = LDAModelManager()
-    num_topics = 10
+    num_topics = 50
     input_dir = 'lda'
 
     # 检查是否存在已保存的模型文件
@@ -209,23 +242,26 @@ if __name__ == "__main__":
         lda_manager.load_mongo_and_train(num_topics=num_topics)
 
     if lda_manager.lda_model is not None:
-        print("\n1. Top 5 words for each topic:")
-        pprint(lda_manager.lda_model.print_topics(num_topics=num_topics, num_words=5))
 
-        print("\n2. Calculate topic coherence score:")
-        lda_manager.get_coherence()
         
-        print("\n3. Calculate topic perplexity score:")
-        lda_manager.get_perplexity()
         
-        print("\n4. Predict topics for a new lyric:")
-        lda_manager.topic_prediction("Accepting Your grace with Love")
+        lda_manager.get_song_topics('65ffc183c1ab936c978f29a8')
+        
+        # print("\n1. Top 5 words for each topic:")
+        # pprint(lda_manager.lda_model.print_topics(num_topics=num_topics, num_words=5))
 
-        print("\n5. Show the most representative document:")
-        lda_manager.get_most_representative_doc()
+        # print("\n2. Calculate topic coherence score:")
+        # lda_manager.get_coherence()
         
-        print("\n6. Generate document-topic matrix:")
-        lda_manager.get_document_topic_matrix(num_topics)
+        # print("\n3. Calculate topic perplexity score:")
+        # lda_manager.get_perplexity()
+        
+        # print("\n4. Predict topics for a new lyric:")
+        # lda_manager.topic_prediction("Accepting Your grace with Love")
+
+        
+        # print("\n5. Generate document-topic matrix:")
+        # lda_manager.get_document_topic_matrix(num_topics)
 
     # 如果您想评估不同主题数量的模型性能,可以取消注释下面的行
     # lda_manager.evaluate_model()

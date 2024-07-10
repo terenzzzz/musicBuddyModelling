@@ -1,14 +1,13 @@
 import numpy as np
 import pickle
 import os
-import pandas as pd
 from pymongo import MongoClient
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import joblib
-import nomalizor
 import json
 from tqdm import tqdm
+from preprocessor import Preprocessor
 
 class TFIDFProcessor:
     def __init__(self, mongo_uri='mongodb://localhost:27017/', db_name='MusicBuddyVue', collection_name='tracks', output_dir='tfidf'):
@@ -19,7 +18,7 @@ class TFIDFProcessor:
         self.tfidf_matrix = None
         self.top_similarities_per_doc = None
         self.feature_names = None
-        self.doc_ids = None
+        self.doc_id_to_index_map = None
         self.vectorizer = None
         self.top_keywords_per_doc = None
 
@@ -28,6 +27,8 @@ class TFIDFProcessor:
         client = MongoClient(self.mongo_uri)
         db = client[self.db_name]
         collection = db[self.collection_name]
+        
+        preprocessor = Preprocessor()
         
         try:
             # Fetch lyric documents from MongoDB
@@ -43,7 +44,9 @@ class TFIDFProcessor:
         
         # Extract lyrics and preprocess them
         lyrics = [doc.get('lyric', '') for doc in lyrics_documents if isinstance(doc.get('lyric', None), str)]
-        processed_lyrics = nomalizor.preprocess_lyrics(lyrics)
+        processed_lyrics = preprocessor.preprocess_lyrics(lyrics)
+        
+
 
         # Calculate TF-IDF using TfidfVectorizer
         self.vectorizer = TfidfVectorizer()
@@ -60,9 +63,7 @@ class TFIDFProcessor:
         print("Getting feature names (vocabulary)...")
         self.feature_names = self.vectorizer.get_feature_names_out()
         
-        # Convert _id to string for document indexing
-        print("Converting _id to string for document indexing...")
-        self.doc_ids = [str(doc['_id']) for doc in lyrics_documents]
+
         
         # Create output directory if it doesn't exist
         os.makedirs(self.output_dir, exist_ok=True)
@@ -74,17 +75,19 @@ class TFIDFProcessor:
         # Sort indices to get top N similarities
         top_n_similarities = np.argsort(cosine_similarities, axis=1)[:, -N-1:-1]
         
+        doc_ids = [str(doc['_id']) for doc in lyrics_documents]
+        self.doc_id_to_index_map = {doc_id: idx for idx, doc_id in enumerate(doc_ids)}
+        
         # Compute top N similarities for each document and save as JSON
         print("Computing top N similarities for each document...")
         self.top_similarities_per_doc = []
-        for i, doc_id in enumerate(tqdm(self.doc_ids, desc="Preparing JSON for Top Similarities")):
-            similar_doc_indices = top_n_similarities[i]
+        for i, doc_id in enumerate(tqdm(doc_ids, desc="Preparing JSON for Top Similarities")):
             similar_docs = [
                 {
-                    "track": {"$oid": self.doc_ids[idx]},
+                    "track": {"$oid": doc_ids[idx]},
                     "value": float(cosine_similarities[i, idx])
                 }
-                for idx in similar_doc_indices
+                for idx in top_n_similarities[i]
             ]
             doc_data = {
                 "track": {"$oid": doc_id},
@@ -101,15 +104,15 @@ class TFIDFProcessor:
             pickle.dump(self.feature_names, f)
         
         # Save document IDs
-        with open(os.path.join(self.output_dir, 'doc_ids.pkl'), 'wb') as f:
-            pickle.dump(self.doc_ids, f)
+        with open(os.path.join(self.output_dir, 'doc_id_to_index_map.json'), 'w') as f:
+            json.dump(self.doc_id_to_index_map, f, indent=2)
             
         # Save TfidfVectorizer model
         joblib.dump(self.vectorizer, os.path.join(self.output_dir, 'tfidf_vectorizer.joblib'))
         
         # Compute top N keywords for each document
         self.top_keywords_per_doc = []
-        for i, doc_id in enumerate(self.doc_ids):
+        for i, doc_id in enumerate(doc_ids):
             tfidf_vector = self.tfidf_matrix[i]
             sorted_indices = tfidf_vector.toarray().argsort()[0][::-1][:N]
             top_keywords = [{"word": self.feature_names[idx], "value": tfidf_vector[0, idx]} for idx in sorted_indices]
@@ -136,8 +139,8 @@ class TFIDFProcessor:
                 self.feature_names = pickle.load(f)
             
             # Load document IDs
-            with open(os.path.join(self.output_dir, 'doc_ids.pkl'), 'rb') as f:
-                self.doc_ids = pickle.load(f)
+            with open(os.path.join(input_dir, 'doc_id_to_index_map.json'), 'r') as f:
+                self.doc_id_to_index_map = json.load(f)
             
             # Load TfidfVectorizer model
             self.vectorizer = joblib.load(os.path.join(self.output_dir, 'tfidf_vectorizer.joblib'))
@@ -150,11 +153,6 @@ class TFIDFProcessor:
             with open(os.path.join(self.output_dir, 'top_similarities.json'), 'r') as f:
                 self.top_similarities_per_doc = json.load(f)
 
-            # Debug prints to check contents
-            print("TF-IDF matrix shape:", self.tfidf_matrix.shape)
-            print("Top N similarities shape:", len(self.top_similarities_per_doc))
-            print("Feature names:", self.feature_names[:10])  # Print first 10 feature names
-            print("Document IDs sample:", self.doc_ids[:10])  # Print first 10 document IDs
 
         except FileNotFoundError as e:
             print(f"Error loading from files: {e}")
@@ -184,7 +182,7 @@ if __name__ == "__main__":
         os.path.exists(os.path.join(input_dir, 'top_similarities.json')) and
         os.path.exists(os.path.join(input_dir, 'top_keywords.json')) and
         os.path.exists(os.path.join(input_dir, 'feature_names.pkl')) and
-        os.path.exists(os.path.join(input_dir, 'doc_ids.pkl')) and
+        os.path.exists(os.path.join(input_dir, 'doc_id_to_index_map.json')) and
         os.path.exists(os.path.join(input_dir, 'tfidf_vectorizer.joblib'))):
     
         print("Loading TF-IDF results from files...")
