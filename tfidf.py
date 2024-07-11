@@ -8,6 +8,7 @@ import joblib
 import json
 from tqdm import tqdm
 from preprocessor import Preprocessor
+import json
 
 class TFIDFProcessor:
     def __init__(self, mongo_uri='mongodb://localhost:27017/', db_name='MusicBuddyVue', collection_name='tracks', output_dir='tfidf'):
@@ -21,38 +22,50 @@ class TFIDFProcessor:
         self.doc_id_to_index_map = None
         self.vectorizer = None
         self.top_keywords_per_doc = None
-
-    def load_mongo_and_train(self, N=20):
-        # Connect to MongoDB
+        self.tracks_documents = None
+        self.preprocessor = Preprocessor()
+        self.processed_lyrics = None
+        
+    def load_preprocessed_data(self):
         client = MongoClient(self.mongo_uri)
         db = client[self.db_name]
         collection = db[self.collection_name]
         
-        preprocessor = Preprocessor()
-        
         try:
-            # Fetch lyric documents from MongoDB
-            lyrics_documents = list(collection.find())
-            if not lyrics_documents:
+            tracks_documents = list(collection.find())
+            if not tracks_documents:
                 print("No documents found in MongoDB collection.")
-                return
             else:
-                print(f"Found {len(lyrics_documents)} documents in MongoDB collection.")
+                print(f"Found {len(tracks_documents)} documents in MongoDB collection.")
+            self.tracks_documents = tracks_documents
         except Exception as e:
             print(f"Error fetching documents from MongoDB: {e}")
-            return
+            return None
         
         # Extract lyrics and preprocess them
-        lyrics = [doc.get('lyric', '') for doc in lyrics_documents if isinstance(doc.get('lyric', None), str)]
-        processed_lyrics = preprocessor.preprocess_lyrics(lyrics)
-        
+        if os.path.exists('processed_lyrics.txt'):
+            # 如果存在本地文件，则读取本地文件
+            with open('processed_lyrics.txt', 'r', encoding='utf-8') as f:
+                self.processed_lyrics = [line.strip() for line in f.readlines()]
+            print(f"Loaded {len(self.processed_lyrics)} PreProcessed documents from local file.")
 
+        else:
+            # 不存在则重新处理
+            lyrics = [doc.get('lyric', '') for doc in self.tracks_documents if isinstance(doc.get('lyric', None), str)]
+            self.processed_lyrics = self.preprocessor.preprocess_lyrics(lyrics)
+            
+
+    def load_mongo_and_train(self, N=20):
+        
+        self.load_preprocessed_data()
+        print('Preprocessed data loaded')
+        
 
         # Calculate TF-IDF using TfidfVectorizer
         self.vectorizer = TfidfVectorizer()
         
         print("Calculating tf_idf_matrix...")
-        self.tfidf_matrix = self.vectorizer.fit_transform(processed_lyrics)
+        self.tfidf_matrix = self.vectorizer.fit_transform(self.processed_lyrics)
         print("tfidf_matrix shape", self.tfidf_matrix.shape)
         
         # Calculate cosine similarities
@@ -75,7 +88,7 @@ class TFIDFProcessor:
         # Sort indices to get top N similarities
         top_n_similarities = np.argsort(cosine_similarities, axis=1)[:, -N-1:-1]
         
-        doc_ids = [str(doc['_id']) for doc in lyrics_documents]
+        doc_ids = [str(doc['_id']) for doc in self.tracks_documents]
         self.doc_id_to_index_map = {doc_id: idx for idx, doc_id in enumerate(doc_ids)}
         
         # Compute top N similarities for each document and save as JSON

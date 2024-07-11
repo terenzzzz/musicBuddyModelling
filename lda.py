@@ -17,42 +17,63 @@ import numpy as np
 class LDAModelManager:
     def __init__(self, mongo_uri='mongodb://localhost:27017/', db_name='MusicBuddyVue', collection_name='tracks'):
         logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
-        self.client = MongoClient(mongo_uri)
-        self.db = self.client[db_name]
-        self.collection = self.db[collection_name]
+        self.mongo_uri = mongo_uri
+        self.db_name = db_name
+        self.collection_name = collection_name
         self.dictionary = None
         self.corpus = None
         self.lda_model = None
         self.texts = None
         self.doc_id_to_index_map = None
+        self.tracks_documents = None
+        self.preprocessor = Preprocessor()
+        self.processed_lyrics = None
+        
+         
+    def load_preprocessed_data(self):
+        client = MongoClient(self.mongo_uri)
+        db = client[self.db_name]
+        collection = db[self.collection_name]
+        
+        try:
+            tracks_documents = list(collection.find())
+            if not tracks_documents:
+                print("No documents found in MongoDB collection.")
+            else:
+                print(f"Found {len(tracks_documents)} documents in MongoDB collection.")
+            self.tracks_documents = tracks_documents
+        except Exception as e:
+            print(f"Error fetching documents from MongoDB: {e}")
+            return None
+        
+        # Extract lyrics and preprocess them
+        if os.path.exists('processed_lyrics.txt'):
+            # 如果存在本地文件，则读取本地文件
+            with open('processed_lyrics.txt', 'r', encoding='utf-8') as f:
+                self.processed_lyrics = [line.strip() for line in f.readlines()]
+            print(f"Loaded {len(self.processed_lyrics)} PreProcessed documents from local file.")
+
+        else:
+            # 不存在则重新处理
+            lyrics = [doc.get('lyric', '') for doc in self.tracks_documents if isinstance(doc.get('lyric', None), str)]
+            self.processed_lyrics = self.preprocessor.preprocess_lyrics(lyrics)
 
 
     def load_mongo_and_train(self, num_topics=50, output_dir='lda'):
-        try:
-            lyrics_documents = list(self.collection.find())
-            if not lyrics_documents:
-                print("No documents found in MongoDB collection.")
-                return
-            print(f"Found {len(lyrics_documents)} documents in MongoDB collection.")
-        except Exception as e:
-            print(f"Error fetching documents from MongoDB: {e}")
-            return
+        self.load_preprocessed_data()
+        print('Preprocessed data loaded')
 
-        preprocessor = Preprocessor()
-        lyrics = [doc.get('lyric', '') for doc in lyrics_documents if isinstance(doc.get('lyric', None), str)]
-        processed_lyrics = list(tqdm(preprocessor.preprocess_lyrics(lyrics), desc="Preprocessing Lyrics"))
-        self.texts = [word_tokenize(lyric) for lyric in processed_lyrics]
+        self.texts = [word_tokenize(lyric) for lyric in self.processed_lyrics]
         
         self.dictionary = corpora.Dictionary(self.texts)
         self.corpus = [self.dictionary.doc2bow(text) for text in self.texts]
 
-        print(f"Original document count: {len(lyrics_documents)}")
-        print(f"Documents after lyric extraction: {len(lyrics)}")
-        print(f"Documents after preprocessing: {len(processed_lyrics)}")
+        print(f"Original document count: {len(self.tracks_documents)}")
+        print(f"Documents after preprocessing: {len(self.processed_lyrics)}")
         print(f"Documents after tokenization: {len(self.texts)}")
         print(f"Corpus size: {len(self.corpus)}")
         
-        doc_ids = [str(doc['_id']) for doc in lyrics_documents]
+        doc_ids = [str(doc['_id']) for doc in self.tracks_documents]
         self.doc_id_to_index_map = {doc_id: idx for idx, doc_id in enumerate(doc_ids)}
         
         self.lda_model = gensim.models.ldamodel.LdaModel(
@@ -64,7 +85,7 @@ class LDAModelManager:
         )
         
         doc_topic_matrix = self.get_document_topic_matrix(num_topics)
-        top_similarities_json = self.compute_top_similar_songs(doc_topic_matrix, lyrics_documents, top_n=20)
+        top_similarities_json = self.compute_top_similar_songs(doc_topic_matrix, self.tracks_documents, top_n=20)
         
         os.makedirs(output_dir, exist_ok=True)
         
@@ -178,7 +199,7 @@ class LDAModelManager:
         return perplexity
 
     def topic_prediction(self, new_lyric):
-        new_lyric_processed = nomalizor.preprocess_lyrics([new_lyric])[0]
+        new_lyric_processed = self.preprocessor.preprocess_lyrics([new_lyric])[0]
         new_lyric_bow = self.dictionary.doc2bow(word_tokenize(new_lyric_processed))
         print("New lyric:", new_lyric)
         print("Processed lyric:", new_lyric_processed)
@@ -197,7 +218,7 @@ class LDAModelManager:
         print(doc_topic_matrix[:5, :5])
         return doc_topic_matrix
 
-    def compute_top_similar_songs(self, song_topic_matrix, lyrics_documents, top_n=20):
+    def compute_top_similar_songs(self, song_topic_matrix, tracks_documents, top_n=20):
         num_songs = song_topic_matrix.shape[0]
         similarities = cosine_similarity(song_topic_matrix)
         top_similarities_json = []
@@ -208,13 +229,13 @@ class LDAModelManager:
             top_similar_indices = np.argsort(song_similarities)[::-1][:top_n]
             top_similar_docs = [
                 {
-                    "track": {"$oid": str(lyrics_documents[idx]['_id'])},
+                    "track": {"$oid": str(tracks_documents[idx]['_id'])},
                     "value": float(song_similarities[idx])
                 }
                 for idx in top_similar_indices
             ]
             top_similarities_json.append({
-                "track": {"$oid": str(lyrics_documents[i]['_id'])},
+                "track": {"$oid": str(self.tracks_documents[i]['_id'])},
                 "topsimilar": top_similar_docs
             })
 
@@ -226,7 +247,7 @@ class LDAModelManager:
 
 if __name__ == "__main__":
     lda_manager = LDAModelManager()
-    num_topics = 50
+    num_topics = 30
     input_dir = 'lda'
 
     # 检查是否存在已保存的模型文件

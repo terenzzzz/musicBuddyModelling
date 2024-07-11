@@ -56,55 +56,80 @@ class EpochLogger:
 class Word2VecManager:
     def __init__(self, mongo_uri='mongodb://localhost:27017/', db_name='MusicBuddyVue', collection_name='tracks'):
         logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
-        self.client = MongoClient(mongo_uri)
-        self.db = self.client[db_name]
-        self.collection = self.db[collection_name]
+        self.mongo_uri = mongo_uri
+        self.db_name = db_name
+        self.collection_name = collection_name
         self.w2v_model = None
         self.song_vectors = None
         self.top_similarities_json = None
         self.doc_id_to_index_map = None
+        self.tracks_documents = None
+        self.preprocessor = Preprocessor()
+        self.processed_lyrics = None
 
-    def preprocess_documents(self, documents):
-        processed_documents = []
+    def token_documents(self, documents):
+        token_documents = []
         for doc in documents:
             tokens = doc.split()
-            processed_documents.append(tokens)
-        return processed_documents
-
-    def load_mongo_and_train(self, N=20, output_dir="word2vec"):
+            token_documents.append(tokens)
+        print(f"Length of token_documents: {len(token_documents)}")
+        return token_documents
+    
+    def load_preprocessed_data(self):
+        client = MongoClient(self.mongo_uri)
+        db = client[self.db_name]
+        collection = db[self.collection_name]
+        
         try:
-            lyrics_documents = list(self.collection.find())
-            if not lyrics_documents:
+            tracks_documents = list(collection.find())
+            if not tracks_documents:
                 print("No documents found in MongoDB collection.")
-                return
-            print(f"Found {len(lyrics_documents)} documents in MongoDB collection.")
+            else:
+                print(f"Found {len(tracks_documents)} documents in MongoDB collection.")
+            self.tracks_documents = tracks_documents
         except Exception as e:
             print(f"Error fetching documents from MongoDB: {e}")
-            return
-
-        preprocessor = Preprocessor()
-        lyrics = [doc.get('lyric', '') for doc in lyrics_documents if isinstance(doc.get('lyric', None), str)]
-        processed_lyrics = list(tqdm(preprocessor.preprocess_lyrics(lyrics), desc="Preprocessing Lyrics"))
+            return None
         
-        processed_lyrics = self.preprocess_documents(processed_lyrics)
+        # Extract lyrics and preprocess them
+        if os.path.exists('processed_lyrics.txt'):
+            # 如果存在本地文件，则读取本地文件
+            with open('processed_lyrics.txt', 'r', encoding='utf-8') as f:
+                self.processed_lyrics = [line.strip() for line in f.readlines()]
+            print(f"Loaded {len(self.processed_lyrics)} PreProcessed documents from local file.")
+
+        else:
+            # 不存在则重新处理
+            lyrics = [doc.get('lyric', '') for doc in self.tracks_documents if isinstance(doc.get('lyric', None), str)]
+            self.processed_lyrics = self.preprocessor.preprocess_lyrics(lyrics)
+
+    def load_mongo_and_train(self, N=20, output_dir="word2vec"):
+        self.load_preprocessed_data()
+        print('Preprocessed data loaded')
+        
+        processed_lyrics = self.token_documents(self.processed_lyrics)
         
         epoch_logger = EpochLogger()
         
         self.w2v_model = Word2Vec(processed_lyrics, 
-                         vector_size=300, 
-                         window=10, 
-                         min_count=5, 
-                         workers=multiprocessing.cpu_count(),
-                         sg=1, 
-                         hs=1,
-                         negative=8,
-                         alpha=0.025,
-                         min_alpha=0.0001,
-                         epochs=250,
-                         callbacks=[epoch_logger],
-                         compute_loss=True)
+                          vector_size=300, 
+                          window=10, 
+                          min_count=5, 
+                          workers=multiprocessing.cpu_count(),
+                          sg=1, 
+                          hs=1,
+                          negative=8,
+                          alpha=0.025,
+                          min_alpha=0.0001,
+                          epochs=200,
+                          callbacks=[epoch_logger],
+                          compute_loss=True)
         
-        doc_ids = [str(doc['_id']) for doc in lyrics_documents]
+        os.makedirs(output_dir, exist_ok=True)
+        
+        self.w2v_model.save(os.path.join(output_dir, 'w2v_model.model'))
+        
+        doc_ids = [str(doc['_id']) for doc in self.tracks_documents]
         self.song_vectors = [self.get_song_vector(lyrics) for lyrics in tqdm(processed_lyrics, desc="Generating Song Vectors")]
         self.doc_id_to_index_map = {doc_id: idx for idx, doc_id in enumerate(doc_ids)}
         
@@ -112,10 +137,10 @@ class Word2VecManager:
         top_n_similarities = np.argsort(w2v_similarity_matrix, axis=1)[:, -N-1:-1]
         
         self.top_similarities_json = []
-        for i, doc in enumerate(tqdm(lyrics_documents, desc="Preparing JSON for Top Similarities")):
+        for i, doc in enumerate(tqdm(self.tracks_documents, desc="Preparing JSON for Top Similarities")):
             top_similar_docs = [
                 {
-                    "track": {"$oid": str(lyrics_documents[idx]['_id'])},
+                    "track": {"$oid": str(self.tracks_documents[idx]['_id'])},
                     "value": float(w2v_similarity_matrix[i, idx])
                 }
                 for idx in top_n_similarities[i]
@@ -125,7 +150,7 @@ class Word2VecManager:
                 "topsimilar": top_similar_docs
             })
         
-        os.makedirs(output_dir, exist_ok=True)
+
         
         with open(os.path.join(output_dir, 'doc_id_to_index_map.json'), 'w') as f:
             json.dump(self.doc_id_to_index_map, f, indent=2)
@@ -134,7 +159,7 @@ class Word2VecManager:
             json.dump(self.top_similarities_json, f, indent=2)
 
         np.save(os.path.join(output_dir, 'song_vectors.npy'), self.song_vectors)
-        self.w2v_model.save(os.path.join(output_dir, 'w2v_model.model'))
+        
 
     def get_song_vector(self, lyrics):
         vectors = [self.w2v_model.wv[word] for word in lyrics if word in self.w2v_model.wv]
