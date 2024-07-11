@@ -266,23 +266,23 @@ if __name__ == "__main__":
 
         
         
-        lda_manager.get_song_topics('65ffc183c1ab936c978f29a8')
+        # lda_manager.get_song_topics('65ffc183c1ab936c978f29a8')
         
-        # print("\n1. Top 5 words for each topic:")
-        # pprint(lda_manager.lda_model.print_topics(num_topics=num_topics, num_words=5))
+        print("\n1. Top 5 words for each topic:")
+        pprint(lda_manager.lda_model.print_topics(num_topics=num_topics, num_words=5))
 
-        # print("\n2. Calculate topic coherence score:")
-        # lda_manager.get_coherence()
+        print("\n2. Calculate topic coherence score:")
+        lda_manager.get_coherence()
         
-        # print("\n3. Calculate topic perplexity score:")
-        # lda_manager.get_perplexity()
+        print("\n3. Calculate topic perplexity score:")
+        lda_manager.get_perplexity()
         
-        # print("\n4. Predict topics for a new lyric:")
-        # lda_manager.topic_prediction("Accepting Your grace with Love")
+        print("\n4. Predict topics for a new lyric:")
+        lda_manager.topic_prediction("Accepting Your grace with Love")
 
         
-        # print("\n5. Generate document-topic matrix:")
-        # lda_manager.get_document_topic_matrix(num_topics)
+        print("\n5. Generate document-topic matrix:")
+        lda_manager.get_document_topic_matrix(num_topics)
 
     # 如果您想评估不同主题数量的模型性能,可以取消注释下面的行
     # lda_manager.evaluate_model()

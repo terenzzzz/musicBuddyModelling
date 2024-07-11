@@ -30,8 +30,8 @@ class Preprocessor:
         if not self.alpha_pattern.match(word):
             return False
         
-        if word.lower() in self.english_words:
-            return True
+        if not word.lower() in self.english_words:
+            return False
         
         # 使用 langdetect 作为后备检查
         try:
@@ -39,6 +39,7 @@ class Preprocessor:
             return any(lang.lang == 'en' for lang in detected_languages)
         except:
             return False
+        return True
         
     def get_wordnet_pos(self, treebank_tag):
         if treebank_tag.startswith('J'):
@@ -67,7 +68,8 @@ class Preprocessor:
                 lemmatized_words = [
                     self.lemmatizer.lemmatize(word.lower(), self.get_wordnet_pos(tag))
                     for word, tag in tagged_words
-                    if word.isalpha() and word.lower() not in self.custom_stopwords and self.is_english_word(word)
+                    # if word.isalpha() and word.lower() not in self.custom_stopwords and self.is_english_word(word)
+                    if word.isalpha() and word.lower() not in self.custom_stopwords
                 ]
                 processed_line = ' '.join(lemmatized_words)
                 processed_lyrics.append(processed_line)
