@@ -11,7 +11,6 @@ import json
 
 
 
-
 class Preprocessor:
     def __init__(self, stopwords_file='stopwords-en.txt'):
         self.custom_stopwords = self.load_custom_stopwords(stopwords_file)
@@ -20,6 +19,7 @@ class Preprocessor:
         self.english_words = set(nltk.corpus.words.words())
         self.tracks_documents = []
 
+
     def load_custom_stopwords(self, file_path):
         with open(file_path, 'r', encoding='utf-8') as file:
             stopwords = [line.strip() for line in file]
@@ -27,19 +27,22 @@ class Preprocessor:
     
     @lru_cache(maxsize=1000000)
     def is_english_word(self, word):
+        # 检查是否只包含字母
         if not self.alpha_pattern.match(word):
             return False
         
-        if not word.lower() in self.english_words:
-            return False
+        # 检查是否在英语单词列表中
+        if word.lower() in self.english_words:
+            return True
         
         # 使用 langdetect 作为后备检查
         try:
             detected_languages = detect_langs(word)
-            return any(lang.lang == 'en' for lang in detected_languages)
+            return any(lang.lang == 'en' and lang.prob > 0.8 for lang in detected_languages)
         except:
             return False
-        return True
+        
+        return False
         
     def get_wordnet_pos(self, treebank_tag):
         if treebank_tag.startswith('J'):
@@ -68,8 +71,8 @@ class Preprocessor:
                 lemmatized_words = [
                     self.lemmatizer.lemmatize(word.lower(), self.get_wordnet_pos(tag))
                     for word, tag in tagged_words
-                    # if word.isalpha() and word.lower() not in self.custom_stopwords and self.is_english_word(word)
-                    if word.isalpha() and word.lower() not in self.custom_stopwords
+                    if word.isalpha() and word.lower() not in self.custom_stopwords and self.is_english_word(word)
+                    # if word.isalpha() and word.lower() not in self.custom_stopwords
                 ]
                 processed_line = ' '.join(lemmatized_words)
                 processed_lyrics.append(processed_line)

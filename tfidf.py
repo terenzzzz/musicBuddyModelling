@@ -8,7 +8,7 @@ import joblib
 import json
 from tqdm import tqdm
 from preprocessor import Preprocessor
-import json
+
 
 class TFIDFProcessor:
     def __init__(self, mongo_uri='mongodb://localhost:27017/', db_name='MusicBuddyVue', collection_name='tracks', output_dir='tfidf'):
@@ -57,6 +57,9 @@ class TFIDFProcessor:
 
     def load_mongo_and_train(self, N=20):
         
+        # Create output directory if it doesn't exist
+        os.makedirs(self.output_dir, exist_ok=True)
+        
         self.load_preprocessed_data()
         print('Preprocessed data loaded')
         
@@ -67,23 +70,22 @@ class TFIDFProcessor:
         print("Calculating tf_idf_matrix...")
         self.tfidf_matrix = self.vectorizer.fit_transform(self.processed_lyrics)
         print("tfidf_matrix shape", self.tfidf_matrix.shape)
+    
         
         # Calculate cosine similarities
         print("Calculating cosine_similarities...")
-        cosine_similarities = cosine_similarity(self.tfidf_matrix, self.tfidf_matrix)
+        cosine_similarities = cosine_similarity(self.tfidf_matrix)
+
         
         # Get feature names (vocabulary)
         print("Getting feature names (vocabulary)...")
         self.feature_names = self.vectorizer.get_feature_names_out()
         
 
-        
-        # Create output directory if it doesn't exist
-        os.makedirs(self.output_dir, exist_ok=True)
-
-        # Save TF-IDF matrix and feature names
+        # Save TF-IDF matrix 
         with open(os.path.join(self.output_dir, 'tfidf_matrix.pkl'), 'wb') as f:
             pickle.dump(self.tfidf_matrix, f)
+
         
         # Sort indices to get top N similarities
         top_n_similarities = np.argsort(cosine_similarities, axis=1)[:, -N-1:-1]
@@ -143,7 +145,7 @@ class TFIDFProcessor:
 
     def load_from_file(self):
         try:
-            # Load TF-IDF matrix and feature names
+            # Load TF-IDF matrix 
             with open(os.path.join(self.output_dir, 'tfidf_matrix.pkl'), 'rb') as f:
                 self.tfidf_matrix = pickle.load(f)
                 print("tfidf_matrix shape", self.tfidf_matrix.shape)

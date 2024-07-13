@@ -16,42 +16,46 @@ class EpochLogger:
         self.epoch = 0
         self.start_time = time.time()
         self.previous_loss = None
-        self.loss_log = []
-        self.word_count = 0
+        self.epochs = []
+        self.losses = []
         
     def on_train_begin(self, model):
         print("Training started")
 
+    def on_train_end(self, model):
+        print("Training finished")
+        total_time = time.time() - self.start_time
+        print(f"Total training time: {total_time:.2f} seconds")
+
     def on_epoch_begin(self, model):
         print(f"Epoch {self.epoch + 1} started")
-        self.start_time = time.time()
 
     def on_epoch_end(self, model):
         self.epoch += 1
-        elapsed_time = time.time() - self.start_time
         current_loss = model.get_latest_training_loss()
-        
         if self.previous_loss is None:
-            epoch_loss = current_loss
+            loss = current_loss
         else:
-            epoch_loss = current_loss - self.previous_loss
-        
+            loss = current_loss - self.previous_loss
         self.previous_loss = current_loss
-        self.word_count = model.corpus_count
-        avg_loss = epoch_loss / self.word_count if self.word_count > 0 else 0
-        self.loss_log.append(avg_loss)
-        
-        print(f"Epoch {self.epoch} finished. Time elapsed: {elapsed_time:.2f} seconds. Average Loss: {avg_loss:.6f}")
-    
-    def on_train_end(self, model):
-        print("Training ended")
 
-    def plot_loss(self):
-        plt.plot(range(1, len(self.loss_log) + 1), self.loss_log)
+        # 归一化 loss（假设每个 epoch 处理相同数量的单词）
+        words_per_epoch = sum(model.corpus_count for _ in range(model.epochs))
+        normalized_loss = loss / words_per_epoch
+
+        self.epochs.append(self.epoch)
+        self.losses.append(normalized_loss)
+        print(f'Epoch: {self.epoch}, Normalized Loss: {normalized_loss:.6f}')
+
+    def plot_loss(self, output_dir):
+        plt.figure(figsize=(10, 6))
+        plt.plot(self.epochs, self.losses)
+        plt.title('Word2Vec Training Loss (Normalized)')
         plt.xlabel('Epoch')
-        plt.ylabel('Average Loss')
-        plt.title('Training Loss over Epochs')
-        plt.show()
+        plt.ylabel('Normalized Loss')
+        plt.grid(True)
+        plt.savefig(os.path.join(output_dir, 'loss_plot.png'))
+        plt.close()
 
 class Word2VecManager:
     def __init__(self, mongo_uri='mongodb://localhost:27017/', db_name='MusicBuddyVue', collection_name='tracks'):
@@ -128,6 +132,8 @@ class Word2VecManager:
         os.makedirs(output_dir, exist_ok=True)
         
         self.w2v_model.save(os.path.join(output_dir, 'w2v_model.model'))
+        
+        epoch_logger.plot_loss(output_dir)
         
         doc_ids = [str(doc['_id']) for doc in self.tracks_documents]
         self.song_vectors = [self.get_song_vector(lyrics) for lyrics in tqdm(processed_lyrics, desc="Generating Song Vectors")]
