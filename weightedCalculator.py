@@ -63,6 +63,12 @@ class WeightedCalculator:
             self.lda_similarity_matrix = self.rebuild_similarity_matrix(lda_similarity_path)  
         else:
             print("Files required did not achieve.")
+    
+    def load_weighted_similarity_matrix(self, weighted_similarity_path):
+        if os.path.exists(weighted_similarity_path):
+            self.weighted_similarity_matrix = self.rebuild_similarity_matrix(weighted_similarity_path)
+        else:
+            print("Files required did not achieve.")
         
     def rebuild_similarity_matrix(self, filename):
         # loaded = np.load(filename)
@@ -74,7 +80,7 @@ class WeightedCalculator:
         # i, j = np.triu_indices_from(matrix)
         # matrix[i, j] = data
         # matrix = matrix + matrix.T - np.diag(np.diag(matrix))
-        loaded = np.load(filename)
+        loaded = np.load(filename, allow_pickle=True)
         matrix = loaded['matrix']
         
         print(f"Similarity matrix loaded from {filename}")
@@ -94,7 +100,18 @@ class WeightedCalculator:
     def check_similarity_matrices(self):
         if self.tfidf_similarity_matrix is None or self.w2v_similarity_matrix is None or self.lda_similarity_matrix is None:
             print("Similarity matrices not found, re-calculating")
-            self.get_similarity_matrix()
+
+
+    def process_and_save_tfidf(self, tfidf_matrix):
+        self.tfidf_similarity_matrix = self.calculate_similarity_matrix(tfidf_matrix, "tfidf")
+
+
+    def process_and_save_w2v(self, w2v_matrix):
+        self.w2v_similarity_matrix = self.calculate_similarity_matrix(w2v_matrix, "w2v")
+
+
+    def process_and_save_lda(self, lda_matrix):
+        self.lda_similarity_matrix = self.calculate_similarity_matrix(lda_matrix, "lda")
     
     def calculate_similarity_matrix(self, matrix, name):
         """
@@ -104,8 +121,8 @@ class WeightedCalculator:
         """
         print(f"Calculating {name} Similarities Matrix")
         sim_matrix = cosine_similarity(matrix)
-        print(f"{name} Similarities Matrix shape:", sim_matrix.shape)
-        print(f"{name}_similarities_matrix[0][1]:", sim_matrix[0][1])
+        print(f"{name} Similarity Matrix shape:", sim_matrix.shape)
+        print(f"{name}_similarity_matrix[0][1]:", sim_matrix[0][1])
         
         # 只保留上三角矩阵（包括对角线）
         # upper_tri = np.triu(sim_matrix)
@@ -114,30 +131,17 @@ class WeightedCalculator:
         # upper_tri = upper_tri.astype(np.float16)
         sim_matrix = sim_matrix.astype(np.float16)
         
-        return sim_matrix
-
-    def save_similarity_matrix(self, matrix, filename):
         # # 获取上三角部分的索引
         # i, j = np.triu_indices_from(matrix)
         # # 只保存上三角部分的值和矩阵的大小
         # np.savez_compressed(filename, data=matrix[i, j], shape=matrix.shape)
         
-        np.savez_compressed(filename, matrix=matrix)
-        print(f"Similarity matrix saved to {filename}")
+        np.savez_compressed(f"{name}_similarity_matrix.npz", matrix=sim_matrix, allow_pickle=True)
+        print(f"Similarity matrix saved to {name}_similarity_matrix.npz")
+        
+        return sim_matrix
 
 
-
-    def process_and_save_tfidf(self, tfidf_matrix, filename):
-        sim_matrix = self.calculate_similarity_matrix(tfidf_matrix, "TF-IDF")
-        self.save_similarity_matrix(sim_matrix, filename)
-
-    def process_and_save_w2v(self, w2v_matrix, filename):
-        sim_matrix = self.calculate_similarity_matrix(w2v_matrix, "Word2Vec")
-        self.save_similarity_matrix(sim_matrix, filename)
-
-    def process_and_save_lda(self, lda_matrix, filename):
-        sim_matrix = self.calculate_similarity_matrix(lda_matrix, "LDA")
-        self.save_similarity_matrix(sim_matrix, filename)
     
     def get_weighted_similarity_matrix(self, tfidf_weight, w2v_weight, lda_weight):
         # 验证权重
@@ -159,7 +163,7 @@ class WeightedCalculator:
         )
         
         print("Weighted Similarity Matrix shape:", self.weighted_similarity_matrix.shape)
-        np.savez_compressed("weighted_similarity", matrix=self.weighted_similarity_matrix)
+        np.savez_compressed("weighted_similarity", matrix=self.weighted_similarity_matrix, allow_pickle=True)
         return self.weighted_similarity_matrix
 
     
@@ -199,27 +203,41 @@ class WeightedCalculator:
 
 
 if __name__ == "__main__":
-    k = 20
-    
+    tfidf_weight = 0.2
+    w2v_weight = 0.4
+    lda_weight = 0.4
     weightedCalculator = WeightedCalculator()
-    weightedCalculator.load_matrix('tfidf/tfidf_matrix.pkl', 'word2vec/song_vectors.npy','lda/lda_matrix.npy')
-    weightedCalculator.load_doc_id_to_index_map('tfidf/doc_id_to_index_map.json')
-                                   
-                                 
     
-    # print('Weighted similarity for <65ffbfa9c1ab936c978e4dad> and <65ffb8b4c1ab936c978b016c> :',weighted_similarity)
+    # Load matrix
+    if all(os.path.exists(f) for f in ['tfidf/tfidf_matrix.pkl', 'word2vec/song_vectors.npy', 'lda/lda_matrix.npy']):
+        weightedCalculator.load_matrix('tfidf/tfidf_matrix.pkl', 'word2vec/song_vectors.npy','lda/lda_matrix.npy')
+        
+    # Load ids mapping
+    if os.path.exists('tfidf/doc_id_to_index_map.json'):
+        weightedCalculator.load_doc_id_to_index_map('tfidf/doc_id_to_index_map.json')
+         
+        
+    # Load similarity matrix
+    if all(os.path.exists(f) for f in ["tfidf_similarity_matrix.npz", "w2v_similarity_matrix.npz", "lda_similarity_matrix.npz"]):
+        weightedCalculator.load_similarity_matrix("tfidf_similarity_matrix.npz", "w2v_similarity_matrix.npz", "lda_similarity_matrix.npz")
+    else:
+        print("Files required not achieved, recalculating similarity matrix")
+        weightedCalculator.process_and_save_tfidf(weightedCalculator.tfidf_matrix)
+        weightedCalculator.process_and_save_w2v(weightedCalculator.w2v_matrix)
+        weightedCalculator.process_and_save_lda(weightedCalculator.lda_matrix)
     
-
-    # weightedCalculator.process_and_save_tfidf(weightedCalculator.tfidf_matrix, "tfidf_similarity.npz")
-    # weightedCalculator.process_and_save_w2v(weightedCalculator.w2v_matrix, "w2v_similarity.npz")
-    # weightedCalculator.process_and_save_lda(weightedCalculator.lda_matrix, "lda_similarity.npz")
+    # Load weighted similarity matrix
+    if os.path.exists('weighted_similarity.npz'):
+        weightedCalculator.load_weighted_similarity_matrix('weighted_similarity.npz')
+    else:
+        print("Files required not achieved, recalculating weighted similarity matrix'")
+        weightedCalculator.get_weighted_similarity_matrix(tfidf_weight, w2v_weight, lda_weight)
+        
+        
+        
     
-    weightedCalculator.load_similarity_matrix("tfidf_similarity.npz", "w2v_similarity.npz", "lda_similarity.npz")
-    print("Testing...")
-    print(f'{weightedCalculator.tfidf_similarity_matrix[50][100]} should equal to {weightedCalculator.tfidf_similarity_matrix[100][50]}')
-    print(f'{weightedCalculator.w2v_similarity_matrix[50][100]} should equal to {weightedCalculator.w2v_similarity_matrix[100][50]}')
-    print(f'{weightedCalculator.lda_similarity_matrix[50][100]} should equal to {weightedCalculator.lda_similarity_matrix[100][50]}')
-    
-    
-    weightedCalculator.get_weighted_similarity_matrix(0.2, 0.4, 0.4)
-    print(f'Weighted similarity for [50][100]: {weightedCalculator.weighted_similarity_matrix[50][100]}')
+    weighted_similarity_from_matrix = weightedCalculator.weighted_similarity_matrix[180][181]
+    print('Weighted similarity for [180][181] :', weighted_similarity_from_matrix)
+        
+    weighted_similarity = weightedCalculator.get_weighted_similarity(tfidf_weight, w2v_weight, lda_weight,'65ffbfa9c1ab936c978e4dad','65ffb8b4c1ab936c978b016c')
+    print('Manual Calculated Weighted similarity for <65ffbfa9c1ab936c978e4dad>[180] and <65ffb8b4c1ab936c978b016c>[181] :', weighted_similarity)
