@@ -65,15 +65,17 @@ class WeightedCalculator:
             print("Files required did not achieve.")
         
     def rebuild_similarity_matrix(self, filename):
-        loaded = np.load(filename)
-        data = loaded['data']
-        shape = loaded['shape']
+        # loaded = np.load(filename)
+        # data = loaded['data']
+        # shape = loaded['shape']
         
-        # 重建完整矩阵
-        matrix = np.zeros(shape, dtype=np.float16)
-        i, j = np.triu_indices_from(matrix)
-        matrix[i, j] = data
-        matrix = matrix + matrix.T - np.diag(np.diag(matrix))
+        # # 重建完整矩阵
+        # matrix = np.zeros(shape, dtype=np.float16)
+        # i, j = np.triu_indices_from(matrix)
+        # matrix[i, j] = data
+        # matrix = matrix + matrix.T - np.diag(np.diag(matrix))
+        loaded = np.load(filename)
+        matrix = loaded['matrix']
         
         print(f"Similarity matrix loaded from {filename}")
         print(f"Matrix shape: {matrix.shape}")
@@ -186,9 +188,9 @@ if __name__ == "__main__":
     # print('Weighted similarity for <65ffbfa9c1ab936c978e4dad> and <65ffb8b4c1ab936c978b016c> :',weighted_similarity)
     
 
-    weightedCalculator.process_and_save_tfidf(weightedCalculator.tfidf_matrix, "tfidf_similarity.npz")
-    weightedCalculator.process_and_save_w2v(weightedCalculator.w2v_matrix, "w2v_similarity.npz")
-    weightedCalculator.process_and_save_lda(weightedCalculator.lda_matrix, "lda_similarity.npz")
+    # weightedCalculator.process_and_save_tfidf(weightedCalculator.tfidf_matrix, "tfidf_similarity.npz")
+    # weightedCalculator.process_and_save_w2v(weightedCalculator.w2v_matrix, "w2v_similarity.npz")
+    # weightedCalculator.process_and_save_lda(weightedCalculator.lda_matrix, "lda_similarity.npz")
     
     weightedCalculator.load_similarity_matrix("tfidf_similarity.npz", "w2v_similarity.npz", "lda_similarity.npz")
     print("Testing...")
