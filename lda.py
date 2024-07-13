@@ -89,6 +89,8 @@ class LDAModelManager:
         
         os.makedirs(output_dir, exist_ok=True)
         
+        np.save(os.path.join(output_dir, 'lda_matrix.npy'), doc_topic_matrix)
+        
         with open(os.path.join(output_dir, 'doc_id_to_index_map.json'), 'w') as f:
             json.dump(self.doc_id_to_index_map, f, indent=2)
         
@@ -247,7 +249,7 @@ class LDAModelManager:
 
 if __name__ == "__main__":
     lda_manager = LDAModelManager()
-    num_topics = 30
+    num_topics = 20
     input_dir = 'lda'
 
     # 检查是否存在已保存的模型文件

@@ -106,18 +106,21 @@ class WeightedCalculator:
         print(f"{name}_similarities_matrix[0][1]:", sim_matrix[0][1])
         
         # 只保留上三角矩阵（包括对角线）
-        upper_tri = np.triu(sim_matrix)
+        # upper_tri = np.triu(sim_matrix)
         
         # 转换为float16以节省空间
-        upper_tri = upper_tri.astype(np.float16)
+        # upper_tri = upper_tri.astype(np.float16)
+        sim_matrix = sim_matrix.astype(np.float16)
         
-        return upper_tri
+        return sim_matrix
 
     def save_similarity_matrix(self, matrix, filename):
-        # 获取上三角部分的索引
-        i, j = np.triu_indices_from(matrix)
-        # 只保存上三角部分的值和矩阵的大小
-        np.savez_compressed(filename, data=matrix[i, j], shape=matrix.shape)
+        # # 获取上三角部分的索引
+        # i, j = np.triu_indices_from(matrix)
+        # # 只保存上三角部分的值和矩阵的大小
+        # np.savez_compressed(filename, data=matrix[i, j], shape=matrix.shape)
+        
+        np.savez_compressed(filename, matrix=matrix)
         print(f"Similarity matrix saved to {filename}")
 
 
@@ -183,9 +186,9 @@ if __name__ == "__main__":
     # print('Weighted similarity for <65ffbfa9c1ab936c978e4dad> and <65ffb8b4c1ab936c978b016c> :',weighted_similarity)
     
 
-    # weightedCalculator.process_and_save_tfidf(weightedCalculator.tfidf_matrix, "tfidf_similarity.npz")
-    # weightedCalculator.process_and_save_w2v(weightedCalculator.w2v_matrix, "w2v_similarity.npz")
-    # weightedCalculator.process_and_save_lda(weightedCalculator.lda_matrix, "lda_similarity.npz")
+    weightedCalculator.process_and_save_tfidf(weightedCalculator.tfidf_matrix, "tfidf_similarity.npz")
+    weightedCalculator.process_and_save_w2v(weightedCalculator.w2v_matrix, "w2v_similarity.npz")
+    weightedCalculator.process_and_save_lda(weightedCalculator.lda_matrix, "lda_similarity.npz")
     
     weightedCalculator.load_similarity_matrix("tfidf_similarity.npz", "w2v_similarity.npz", "lda_similarity.npz")
     print("Testing...")
