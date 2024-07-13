@@ -8,10 +8,10 @@ import os
 
 
 # Define process_chunk function outside of the class
-def process_chunk(start_row, end_row, tfidf_similarities_matrix, w2v_similarity_matrix, lda_similarity_matrix,
+def process_chunk(start_row, end_row, tfidf_similarity_matrix, w2v_similarity_matrix, lda_similarity_matrix,
                   tfidf_weight, word2vec_weight, lda_weight, result_queue):
     weighted_chunk = (
-        tfidf_weight * tfidf_similarities_matrix[start_row:end_row, :] +
+        tfidf_weight * tfidf_similarity_matrix[start_row:end_row, :] +
         word2vec_weight * w2v_similarity_matrix[start_row:end_row, :] +
         lda_weight * lda_similarity_matrix[start_row:end_row, :]
     )
@@ -92,7 +92,7 @@ class WeightedCalculator:
 
             
     def check_similarity_matrices(self):
-        if self.tfidf_similarities_matrix is None or self.w2v_similarity_matrix is None or self.lda_similarity_matrix is None:
+        if self.tfidf_similarity_matrix is None or self.w2v_similarity_matrix is None or self.lda_similarity_matrix is None:
             print("Similarity matrices not found, re-calculating")
             self.get_similarity_matrix()
     
@@ -139,6 +139,28 @@ class WeightedCalculator:
         sim_matrix = self.calculate_similarity_matrix(lda_matrix, "LDA")
         self.save_similarity_matrix(sim_matrix, filename)
     
+    def get_weighted_similarity_matrix(self, tfidf_weight, w2v_weight, lda_weight):
+        # 验证权重
+        self.validate_weights(tfidf_weight, w2v_weight, lda_weight)
+        
+        # 检查必要的数据是否已加载
+        self.check_doc_id_to_index_map()
+        self.check_similarity_matrices()
+        
+        # 确保所有相似度矩阵都已加载
+        if self.tfidf_similarity_matrix is None or self.w2v_similarity_matrix is None or self.lda_similarity_matrix is None:
+            raise ValueError("All similarity matrices must be loaded before calculating weighted similarity")
+        
+        # 计算加权相似度矩阵
+        self.weighted_similarity_matrix = (
+            tfidf_weight * self.tfidf_similarity_matrix +
+            w2v_weight * self.w2v_similarity_matrix +
+            lda_weight * self.lda_similarity_matrix
+        )
+        
+        print("Weighted Similarity Matrix shape:", self.weighted_similarity_matrix.shape)
+        np.savez_compressed("weighted_similarity", matrix=self.weighted_similarity_matrix)
+        return self.weighted_similarity_matrix
 
     
     def get_weighted_similarity(self, tfidf_weight, word2vec_weight, lda_weight, doc1, doc2):
@@ -159,7 +181,7 @@ class WeightedCalculator:
         print("doc1_index: ", doc1_index)
         print("doc2_index: ", doc2_index)
         
-        tfidf_similarity = self.tfidf_similarities_matrix[doc1_index][doc2_index]
+        tfidf_similarity = self.tfidf_similarity_matrix[doc1_index][doc2_index]
         w2v_similarity = self.w2v_similarity_matrix[doc1_index][doc2_index]
         lda_similarity = self.lda_similarity_matrix[doc1_index][doc2_index]
         
@@ -198,3 +220,6 @@ if __name__ == "__main__":
     print(f'{weightedCalculator.w2v_similarity_matrix[50][100]} should equal to {weightedCalculator.w2v_similarity_matrix[100][50]}')
     print(f'{weightedCalculator.lda_similarity_matrix[50][100]} should equal to {weightedCalculator.lda_similarity_matrix[100][50]}')
     
+    
+    weightedCalculator.get_weighted_similarity_matrix(0.2, 0.4, 0.4)
+    print(f'Weighted similarity for [50][100]: {weightedCalculator.weighted_similarity_matrix[50][100]}')
