@@ -170,7 +170,7 @@ class LDAModelManager:
         plt.title("Coherence Score and Perplexity vs Number of Topics")
         plt.show()
 
-    def load_files(self, input_dir='lda'):
+    def load_from_file(self, input_dir='lda'):
         try:
             with open(os.path.join(input_dir, 'doc_id_to_index_map.json'), 'r') as f:
                 self.doc_id_to_index_map = json.load(f)
@@ -255,7 +255,7 @@ if __name__ == "__main__":
     # 检查是否存在已保存的模型文件
     if all(os.path.exists(os.path.join(input_dir, f)) for f in ['dictionary.gensim', 'corpus.mm', 'lda_model.gensim', 'texts.txt']):
         print("Loading LDA results from files...")
-        if lda_manager.load_files(input_dir):
+        if lda_manager.load_from_file(input_dir):
             print("LDA model loaded successfully.")
         else:
             print("Failed to load LDA model. Training a new one...")

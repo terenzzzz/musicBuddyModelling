@@ -174,7 +174,7 @@ class Word2VecManager:
         else:
             return np.zeros(self.w2v_model.vector_size)
 
-    def load_saved_data(self, input_dir="word2vec"):
+    def load_from_file(self, input_dir="word2vec"):
         self.song_vectors = np.load(os.path.join(input_dir, 'song_vectors.npy'))
         self.w2v_model = Word2Vec.load(os.path.join(input_dir, 'w2v_model.model'))
         with open(os.path.join(input_dir, 'top_similarities.json'), 'r') as f:
@@ -207,7 +207,7 @@ if __name__ == "__main__":
 
     if all(os.path.exists(os.path.join(input_dir, f)) for f in ['song_vectors.npy', 'w2v_model.model', 'top_similarities.json', 'doc_id_to_index_map.json']):
         print("Loading word2Vec results from files...")
-        w2v_manager.load_saved_data()
+        w2v_manager.load_from_file(input_dir)
     else:
         print("Loading data from MongoDB and training Word2Vec model...")
         w2v_manager.load_mongo_and_train()
