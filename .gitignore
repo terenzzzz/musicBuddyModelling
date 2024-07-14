@@ -1,3 +1,9 @@
 tfidf/
 word2vec/
 lda/
+lda_similarity_matrix.npz
+tfidf_similarity_matrix.npz
+top_weighted_similarity.json
+w2v_similarity_matrix.npz
+weighted_similarity.npz
+
