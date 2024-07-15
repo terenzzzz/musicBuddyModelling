@@ -209,15 +209,48 @@ class TFIDFManager:
         return similar_documents
 
     def get_top_words(self, doc_id):
+        
+        
         top_words = None
         for item in self.top_keywords_per_doc:
             if item['track']['$oid'] == doc_id:
                 top_words = item['topwords']
                 break
         return top_words
+    
+    def get_similar_documents_for_lyrics(self, input_lyrics_list, top_n=20):
+        # 确保输入是一个列表
+        if not isinstance(input_lyrics_list, list):
+            input_lyrics_list = [input_lyrics_list]
+    
+        # 预处理输入的歌词列表
+        processed_inputs = self.preprocessor.preprocess_lyrics(input_lyrics_list)
+    
+        # 使用已训练的vectorizer将预处理后的歌词转换为TF-IDF向量
+        input_vectors = self.vectorizer.transform(processed_inputs)
+    
+        # 计算平均TF-IDF向量并转换为numpy数组
+        average_vector = np.asarray(input_vectors.mean(axis=0)).flatten()
+    
+        # 计算平均向量与所有文档的余弦相似度
+        cosine_similarities = cosine_similarity(average_vector.reshape(1, -1), self.tfidf_matrix).flatten()
+    
+        # 获取相似度最高的top_n个文档的索引
+        top_indices = cosine_similarities.argsort()[-top_n:][::-1]
+    
+        # 准备结果
+        similar_documents = []
+        for idx in top_indices:
+            doc_id = next(id for id, index in self.doc_id_to_index_map.items() if index == idx)
+            similar_documents.append({
+                "track": {"$oid": doc_id},
+                "similarity": float(cosine_similarities[idx])
+            })
+    
+        return similar_documents
 
 if __name__ == "__main__":
-    processor = TFIDFManager()
+    tfidf_manager = TFIDFManager()
     input_dir = 'tfidf'  # or other directory where you save files
     if (os.path.exists(os.path.join(input_dir, 'tfidf_matrix.pkl')) and
         os.path.exists(os.path.join(input_dir, 'top_similarities.json')) and
@@ -227,19 +260,37 @@ if __name__ == "__main__":
         os.path.exists(os.path.join(input_dir, 'tfidf_vectorizer.joblib'))):
     
         print("Loading TF-IDF results from files...")
-        processor.load_from_file(input_dir)
+        tfidf_manager.load_from_file(input_dir)
     else:
         print("Loading data from MongoDB and training TF-IDF model...")
-        processor.load_mongo_and_train()
+        tfidf_manager.load_mongo_and_train()
     
-    if processor.tfidf_matrix is not None:
+    if tfidf_manager.tfidf_matrix is not None:
         print("TF-IDF Matrix is ready.")
         
-        query_doc_id = '65ffc183c1ab936c978f29a8'
-        top_words = processor.get_top_words(query_doc_id)
-        similar_docs = processor.get_similar_documents(query_doc_id)
-        print(f"Similar documents for document {query_doc_id}:")
-        print(similar_docs)
         
-        print(f"Top words for document {query_doc_id}:")
-        print(top_words)
+        lyric="If he's cheatin', I'm doin' him worse (Like) No Uno, I hit the reverse (Grrah) I ain't trippin', the grip in my purse (Grrah) I don't care 'cause he did it first (Like) If he's cheatin', I'm doin' him worse (Damn) I ain't trippin', I— (I ain't trippin', I—) I ain't trippin', the grip in my purse (Like) I don't care 'cause he did it first"
+        lyric2="Honey, I'm a good man, but I'm a cheatin' man And I'll do all I can, to get a lady's love And I wanna do right, I don't wanna hurt nobody If I slip, well then I'm sorry, yes I am"
+        
+        similar_documents = tfidf_manager.get_similar_documents_for_lyrics([lyric,lyric2])
+        print(similar_documents)
+        
+        
+        
+        # query_doc_id = '65ffc183c1ab936c978f29a8'
+
+        # similar_docs = tfidf_manager.get_similar_documents(query_doc_id)
+        # print(f"Similar documents for document {query_doc_id}:")
+        # print(similar_docs)
+        
+        # top_words = tfidf_manager.get_top_words(query_doc_id)
+        # print(f"Top words for document {query_doc_id}:")
+        # print(top_words)
+        
+        
+        
+        
+        
+        
+        
+        
