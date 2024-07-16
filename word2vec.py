@@ -59,7 +59,6 @@ class EpochLogger:
 
 class Word2VecManager:
     def __init__(self, mongo_uri='mongodb://localhost:27017/', db_name='MusicBuddyVue', collection_name='tracks'):
-        logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
         self.mongo_uri = mongo_uri
         self.db_name = db_name
         self.collection_name = collection_name
@@ -200,6 +199,43 @@ class Word2VecManager:
             print(f"Document ID {doc_id} not found in the mapping.")
             return None
         return self.song_vectors[index]
+    
+    def get_similar_documents_for_lyrics(self, input_lyrics_list, top_n=20):
+        # 确保输入是一个列表
+        if not isinstance(input_lyrics_list, list):
+            input_lyrics_list = [input_lyrics_list]
+    
+        # 预处理输入的歌词列表
+        processed_inputs = self.preprocessor.preprocess_lyrics(input_lyrics_list)
+    
+        # 计算每首歌的 W2V 向量
+        input_vectors = []
+        for lyrics in processed_inputs:
+            tokens = lyrics.split()
+            song_vector = self.get_song_vector(tokens)
+            input_vectors.append(song_vector)
+    
+        # 计算平均向量
+        average_vector = np.mean(input_vectors, axis=0)
+    
+        # 计算平均向量与所有文档的余弦相似度
+        cosine_similarities = cosine_similarity([average_vector], self.song_vectors)[0]
+    
+        # 获取相似度最高的 top_n 个文档的索引
+        top_indices = cosine_similarities.argsort()[-top_n:][::-1]
+    
+        # 准备结果
+        similar_documents = []
+        for idx in top_indices:
+            doc_id = next(id for id, index in self.doc_id_to_index_map.items() if index == idx)
+            similar_documents.append({
+                "track": {"$oid": doc_id},
+                "similarity": float(cosine_similarities[idx])
+            })
+    
+        return similar_documents
+
+    
 
 if __name__ == "__main__":
     w2v_manager = Word2VecManager()
@@ -213,16 +249,23 @@ if __name__ == "__main__":
         w2v_manager.load_mongo_and_train()
 
     if w2v_manager.w2v_model is not None:
-        song_vectors_matrix = np.array(w2v_manager.song_vectors)
-        print("song_vectors_matrix shape:", song_vectors_matrix.shape)
         
-        doc_id = '6678efa85e93215877cdfce9'
-        doc_vector = w2v_manager.get_vector_by_doc_id(doc_id)
-        if doc_vector is not None:
-            print(f"Vector representation for document ID {doc_id}: {doc_vector}")
+        lyric="If he's cheatin', I'm doin' him worse (Like) No Uno, I hit the reverse (Grrah) I ain't trippin', the grip in my purse (Grrah) I don't care 'cause he did it first (Like) If he's cheatin', I'm doin' him worse (Damn) I ain't trippin', I— (I ain't trippin', I—) I ain't trippin', the grip in my purse (Like) I don't care 'cause he did it first"
+        lyric2="Honey, I'm a good man, but I'm a cheatin' man And I'll do all I can, to get a lady's love And I wanna do right, I don't wanna hurt nobody If I slip, well then I'm sorry, yes I am"
         
-        words_to_find = ['love', 'university', 'cat', 'car', 'night', 'apple', 'bed']
-        for word in words_to_find:
-            similar_words = w2v_manager.find_most_similar_words(word)
-            print(f"Words most similar to '{word}': {similar_words}")
-            print()
+        similar_documents = w2v_manager.get_similar_documents_for_lyrics([lyric,lyric2])
+        print(similar_documents)
+        
+        # song_vectors_matrix = np.array(w2v_manager.song_vectors)
+        # print("song_vectors_matrix shape:", song_vectors_matrix.shape)
+        
+        # doc_id = '6678efa85e93215877cdfce9'
+        # doc_vector = w2v_manager.get_vector_by_doc_id(doc_id)
+        # if doc_vector is not None:
+        #     print(f"Vector representation for document ID {doc_id}: {doc_vector}")
+        
+        # words_to_find = ['love', 'university', 'cat', 'car', 'night', 'apple', 'bed']
+        # for word in words_to_find:
+        #     similar_words = w2v_manager.find_most_similar_words(word)
+        #     print(f"Words most similar to '{word}': {similar_words}")
+        #     print()

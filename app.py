@@ -24,8 +24,8 @@ tfidf_manager = TFIDFManager()
 tfidf_manager.load_from_file("tfidf")
 
 # # Load word2vec model
-# w2v_manager = Word2VecManager()
-# w2v_manager.load_from_file("word2vec")
+w2v_manager = Word2VecManager()
+w2v_manager.load_from_file("word2vec")
 
 # Load lda model
 lda_manager = LDAModelManager()
@@ -33,7 +33,11 @@ lda_manager.load_from_file("lda")
 
 
 # # Load Weighted similarity
-# weighted_manager = WeightedManager()
+tfidf_weight = 0.2
+w2v_weight = 0.4
+lda_weight = 0.4
+weighted_manager = WeightedManager(tfidf_weight, w2v_weight, lda_weight)
+
 
 
 
@@ -75,6 +79,62 @@ def getTfidfRecommendByLyrics():
     except Exception as e:
         print(f"Error: {str(e)}")  # Print detailed error information
         return jsonify({"error": str(e)}), 500
+    
+@app.route('/getW2VRecommendByLyrics', methods=['POST'])
+def getW2VRecommendByLyrics():
+    try:
+        # 从请求体中获取数组
+        data = request.get_json()
+        lyric = data['lyric']
+        if not lyric:
+            return jsonify({"error": "Missing 'lyric' parameter"}), 400
+        
+        try:   
+            response = w2v_manager.get_similar_documents_for_lyrics(lyric)
+            return jsonify(response), 200
+        except json.JSONDecodeError:
+            return jsonify({"error": "Invalid 'lyric' format. Expected a JSON array."}), 400
+    except Exception as e:
+        print(f"Error: {str(e)}")  # Print detailed error information
+        return jsonify({"error": str(e)}), 500
+    
+@app.route('/getLDARecommendByLyrics', methods=['POST'])
+def getLDARecommendByLyrics():
+    try:
+        # 从请求体中获取数组
+        data = request.get_json()
+        lyric = data['lyric']
+        if not lyric:
+            return jsonify({"error": "Missing 'lyric' parameter"}), 400
+        
+        try:   
+            response = lda_manager.get_similar_documents_for_lyrics(lyric)
+            return jsonify(response), 200
+        except json.JSONDecodeError:
+            return jsonify({"error": "Invalid 'lyric' format. Expected a JSON array."}), 400
+    except Exception as e:
+        print(f"Error: {str(e)}")  # Print detailed error information
+        return jsonify({"error": str(e)}), 500
+    
+    
+@app.route('/getWeightedRecommendByLyrics', methods=['POST'])
+def getWeightedRecommendByLyrics():
+    try:
+        # 从请求体中获取数组
+        data = request.get_json()
+        lyric = data['lyric']
+        if not lyric:
+            return jsonify({"error": "Missing 'lyric' parameter"}), 400
+        
+        try:   
+            response = lda_manager.get_similar_documents_for_lyrics(lyric)
+            return jsonify(response), 200
+        except json.JSONDecodeError:
+            return jsonify({"error": "Invalid 'lyric' format. Expected a JSON array."}), 400
+    except Exception as e:
+        print(f"Error: {str(e)}")  # Print detailed error information
+        return jsonify({"error": str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(host='localhost', port=5002)

@@ -23,6 +23,7 @@ class LDAModelManager:
         self.dictionary = None
         self.corpus = None
         self.lda_model = None
+        self.doc_topic_matrix = None
         self.texts = None
         self.doc_id_to_index_map = None
         self.tracks_documents = None
@@ -84,12 +85,12 @@ class LDAModelManager:
             passes=10
         )
         
-        doc_topic_matrix = self.get_document_topic_matrix(num_topics)
-        top_similarities_json = self.compute_top_similar_songs(doc_topic_matrix, self.tracks_documents, top_n=20)
+        self.doc_topic_matrix = self.get_document_topic_matrix(num_topics)
+        top_similarities_json = self.compute_top_similar_songs(self.doc_topic_matrix, self.tracks_documents, top_n=20)
         
         os.makedirs(output_dir, exist_ok=True)
         
-        np.save(os.path.join(output_dir, 'lda_matrix.npy'), doc_topic_matrix)
+        np.save(os.path.join(output_dir, 'lda_matrix.npy'), self.doc_topic_matrix)
         
         with open(os.path.join(output_dir, 'doc_id_to_index_map.json'), 'w') as f:
             json.dump(self.doc_id_to_index_map, f, indent=2)
@@ -177,6 +178,9 @@ class LDAModelManager:
             self.dictionary = corpora.Dictionary.load(os.path.join(input_dir, 'dictionary.gensim'))
             self.corpus = corpora.MmCorpus(os.path.join(input_dir, 'corpus.mm'))
             self.lda_model = gensim.models.ldamodel.LdaModel.load(os.path.join(input_dir, 'lda_model.gensim'))
+            # 加载所有文档的主题分布矩阵
+            self.doc_topic_matrix = np.load('lda/lda_matrix.npy')
+        
             
             with open(os.path.join(input_dir, 'texts.txt'), 'r', encoding='utf-8') as f:
                 self.texts = [line.strip().split() for line in f]
@@ -243,6 +247,43 @@ class LDAModelManager:
 
         return top_similarities_json
     
+    
+    def get_similar_documents_for_lyrics(self, input_lyrics_list, top_n=20):
+        # 确保输入是一个列表
+        if not isinstance(input_lyrics_list, list):
+            input_lyrics_list = [input_lyrics_list]
+    
+        # 预处理输入的歌词列表
+        processed_inputs = self.preprocessor.preprocess_lyrics(input_lyrics_list)
+    
+        # 将预处理后的歌词转换为LDA向量
+        input_vectors = []
+        for lyrics in processed_inputs:
+            bow = self.dictionary.doc2bow(word_tokenize(lyrics))
+            vector = self.lda_model.get_document_topics(bow, minimum_probability=0)
+            vector = [prob for (_, prob) in sorted(vector)]
+            input_vectors.append(vector)
+    
+        # 计算平均LDA向量
+        average_vector = np.mean(input_vectors, axis=0)
+    
+
+        # 计算平均向量与所有文档的余弦相似度
+        cosine_similarities = cosine_similarity([average_vector], self.doc_topic_matrix)[0]
+    
+        # 获取相似度最高的top_n个文档的索引
+        top_indices = cosine_similarities.argsort()[-top_n:][::-1]
+    
+        # 准备结果
+        similar_documents = []
+        for idx in top_indices:
+            doc_id = next(id for id, index in self.doc_id_to_index_map.items() if index == idx)
+            similar_documents.append({
+                "track": {"$oid": doc_id},
+                "similarity": float(cosine_similarities[idx])
+            })
+    
+        return similar_documents
 
     
     
@@ -266,25 +307,29 @@ if __name__ == "__main__":
 
     if lda_manager.lda_model is not None:
 
+        lyric="If he's cheatin', I'm doin' him worse (Like) No Uno, I hit the reverse (Grrah) I ain't trippin', the grip in my purse (Grrah) I don't care 'cause he did it first (Like) If he's cheatin', I'm doin' him worse (Damn) I ain't trippin', I— (I ain't trippin', I—) I ain't trippin', the grip in my purse (Like) I don't care 'cause he did it first"
+        lyric2="Honey, I'm a good man, but I'm a cheatin' man And I'll do all I can, to get a lady's love And I wanna do right, I don't wanna hurt nobody If I slip, well then I'm sorry, yes I am"
         
+        similar_documents = lda_manager.get_similar_documents_for_lyrics([lyric,lyric2])
+        print(similar_documents)
         
         # lda_manager.get_song_topics('65ffc183c1ab936c978f29a8')
         
-        print("\n1. Top 5 words for each topic:")
-        pprint(lda_manager.lda_model.print_topics(num_topics=num_topics, num_words=5))
+        # print("\n1. Top 5 words for each topic:")
+        # pprint(lda_manager.lda_model.print_topics(num_topics=num_topics, num_words=5))
 
-        print("\n2. Calculate topic coherence score:")
-        lda_manager.get_coherence()
+        # print("\n2. Calculate topic coherence score:")
+        # lda_manager.get_coherence()
         
-        print("\n3. Calculate topic perplexity score:")
-        lda_manager.get_perplexity()
+        # print("\n3. Calculate topic perplexity score:")
+        # lda_manager.get_perplexity()
         
-        print("\n4. Predict topics for a new lyric:")
-        lda_manager.topic_prediction("Accepting Your grace with Love")
+        # print("\n4. Predict topics for a new lyric:")
+        # lda_manager.topic_prediction("Accepting Your grace with Love")
 
         
-        print("\n5. Generate document-topic matrix:")
-        lda_manager.get_document_topic_matrix(num_topics)
+        # print("\n5. Generate document-topic matrix:")
+        # lda_manager.get_document_topic_matrix(num_topics)
 
     # 如果您想评估不同主题数量的模型性能,可以取消注释下面的行
     # lda_manager.evaluate_model()
