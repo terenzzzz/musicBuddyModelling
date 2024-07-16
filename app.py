@@ -19,17 +19,17 @@ tracks_collection = db['tracks']
         
 
 
-# Load tfidf model
-tfidf_manager = TFIDFManager()
-tfidf_manager.load_from_file("tfidf")
+# # Load tfidf model
+# tfidf_manager = TFIDFManager()
+# tfidf_manager.load_from_file("tfidf")
 
-# # Load word2vec model
-w2v_manager = Word2VecManager()
-w2v_manager.load_from_file("word2vec")
+# # # Load word2vec model
+# w2v_manager = Word2VecManager()
+# w2v_manager.load_from_file("word2vec")
 
-# Load lda model
-lda_manager = LDAModelManager()
-lda_manager.load_from_file("lda")
+# # Load lda model
+# lda_manager = LDAModelManager()
+# lda_manager.load_from_file("lda")
 
 
 # # Load Weighted similarity
@@ -53,7 +53,7 @@ def getTrackTopic():
         return jsonify({"error": "Missing 'track' parameter"}), 400
     
     try:
-        response = lda_manager.get_song_topics(song_id)
+        response = weighted_manager.lda_manager.get_song_topics(song_id)
         if response is None:
             return jsonify({"error": "Song not found"}), 404
         return jsonify(response), 200
@@ -72,7 +72,7 @@ def getTfidfRecommendByLyrics():
             return jsonify({"error": "Missing 'lyric' parameter"}), 400
         
         try:   
-            response = tfidf_manager.get_similar_documents_for_lyrics(lyric)
+            response = weighted_manager.tfidf_manager.get_similar_documents_for_lyrics(lyric)
             return jsonify(response), 200
         except json.JSONDecodeError:
             return jsonify({"error": "Invalid 'lyric' format. Expected a JSON array."}), 400
@@ -90,7 +90,7 @@ def getW2VRecommendByLyrics():
             return jsonify({"error": "Missing 'lyric' parameter"}), 400
         
         try:   
-            response = w2v_manager.get_similar_documents_for_lyrics(lyric)
+            response = weighted_manager.w2v_manager.get_similar_documents_for_lyrics(lyric)
             return jsonify(response), 200
         except json.JSONDecodeError:
             return jsonify({"error": "Invalid 'lyric' format. Expected a JSON array."}), 400
@@ -108,7 +108,7 @@ def getLDARecommendByLyrics():
             return jsonify({"error": "Missing 'lyric' parameter"}), 400
         
         try:   
-            response = lda_manager.get_similar_documents_for_lyrics(lyric)
+            response = weighted_manager.lda_manager.get_similar_documents_for_lyrics(lyric)
             return jsonify(response), 200
         except json.JSONDecodeError:
             return jsonify({"error": "Invalid 'lyric' format. Expected a JSON array."}), 400
