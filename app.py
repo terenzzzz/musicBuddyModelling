@@ -127,7 +127,7 @@ def getWeightedRecommendByLyrics():
             return jsonify({"error": "Missing 'lyric' parameter"}), 400
         
         try:   
-            response = lda_manager.get_similar_documents_for_lyrics(lyric)
+            response = weighted_manager.get_similar_documents_for_lyrics(lyric)
             return jsonify(response), 200
         except json.JSONDecodeError:
             return jsonify({"error": "Invalid 'lyric' format. Expected a JSON array."}), 400
