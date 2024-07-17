@@ -1,79 +1,57 @@
-"""
-不保存相似度矩阵,直接计算
-"""
-
-
+from scipy.sparse import csr_matrix, save_npz, lil_matrix
 from sklearn.metrics.pairwise import cosine_similarity
 import pickle
 import numpy as np
+import multiprocessing
 import json
 import os
+import tqdm
 from preprocessor import Preprocessor
 from lda import LDAModelManager
 from word2vec import Word2VecManager
 from tfidf import TFIDFManager
 
         
-class newWeightedManager:
+class WeightedManager:
     
-    def __init__(self,tfidf_weight, w2v_weight, lda_weight, doc_id_to_index_map_path):
-        self.preprocessor = Preprocessor() # 预处理器
-        self.doc_id_to_index_map = None # 文档id和索引映射, 用来通过id查找索引
-        
-        # 三种模型
-        self.tfidf_manager = None
-        self.w2v_manager = None
-        self.lda_manager = None
-        
-        # 三种模型的向量矩阵
+    def __init__(self,tfidf_weight, w2v_weight, lda_weight):
+        self.preprocessor = Preprocessor()
+        self.doc_id_to_index_map = None
         self.tfidf_matrix = None
         self.w2v_matrix = None
         self.lda_matrix = None
         
-        # 相似度矩阵
         self.tfidf_similarity_matrix = None
         self.w2v_similarity_matrix = None
         self.lda_similarity_matrix = None
+        
         self.weighted_similarity_matrix = None
         self.top_n_similarities = None
-
-        # 默认加权数
+        self.init_models()
+        
         self.tfidf_weight = tfidf_weight
         self.w2v_weight = w2v_weight
         self.lda_weight = lda_weight
-        
-        # 初始化
-        self.validate_weights(tfidf_weight, w2v_weight, lda_weight)
-        self.init_models() #从文件中加载三种模型
-        self.load_doc_id_to_index_map(doc_id_to_index_map_path) #从文件中加载文档id与索引的映射
-        # self.init_manager(tfidf_weight, w2v_weight, lda_weight)
+        self.init_manager(tfidf_weight, w2v_weight, lda_weight)
         
     def init_models(self):
-        """
-        从文件中加载三种模型
-        """
         # Load tfidf model
         tfidf_manager = TFIDFManager()
         tfidf_manager.load_from_file("tfidf")
         self.tfidf_manager = tfidf_manager
-        self.tfidf_matrix = tfidf_manager.tfidf_matrix
 
         # Load word2vec model
         w2v_manager = Word2VecManager()
         w2v_manager.load_from_file("word2vec")
         self.w2v_manager = w2v_manager
-        self.w2v_matrix = w2v_manager.song_vectors
 
         # Load lda model
         lda_manager = LDAModelManager()
         lda_manager.load_from_file("lda")
         self.lda_manager = lda_manager
-        self.lda_matrix = lda_manager.doc_topic_matrix
+        
         
     def load_matrix(self, tfidf_matrix_path, w2v_matrix_path, lda_matrix_path):
-        """
-        从文件中加载三种模型的向量矩阵
-        """
         if all(os.path.exists(f) for f in [tfidf_matrix_path, w2v_matrix_path, lda_matrix_path]):
             with open(tfidf_matrix_path, 'rb') as f:
                 self.tfidf_matrix = pickle.load(f)
@@ -86,47 +64,30 @@ class newWeightedManager:
             print("Files required did not achieve.")
         
     def load_doc_id_to_index_map(self, doc_id_to_index_map_path):
-        """
-        从文件中加载文档id与索引的映射
-        """
         if os.path.exists(doc_id_to_index_map_path):
             with open(doc_id_to_index_map_path, 'r') as f:
                 self.doc_id_to_index_map = json.load(f)
             print("Document Length :", len(self.doc_id_to_index_map))
         else:
             print("Files required did not achieve.")
+        
+
 
     def load_similarity_matrix(self, tfidf_similarity_path, w2v_similarity_path, lda_similarity_path):
-        """
-        从文件中加载计算好的三种模型的相似度矩阵
-        """
         if all(os.path.exists(f) for f in [tfidf_similarity_path, w2v_similarity_path, lda_similarity_path]):
             self.tfidf_similarity_matrix = self.rebuild_similarity_matrix(tfidf_similarity_path)
             self.w2v_similarity_matrix = self.rebuild_similarity_matrix(w2v_similarity_path)
             self.lda_similarity_matrix = self.rebuild_similarity_matrix(lda_similarity_path)  
         else:
             print("Files required did not achieve.")
-            self.process_and_save_tfidf(weighted_manager.tfidf_matrix)
-            self.process_and_save_w2v(weighted_manager.w2v_matrix)
-            self.process_and_save_lda(weighted_manager.lda_matrix)
-            
-        print("Similarity_matrix Loadded Successful")
     
     def load_weighted_similarity_matrix(self, weighted_similarity_path):
-        """
-        从文件中加载计算好的相似度矩阵
-        """
+        
         if os.path.exists(weighted_similarity_path):
-            self.weighted_similarity_matrix = self.rebuild_similarity_matrix(weighted_similarity_path)  
-            print(f"Similarity matrix loaded from {weighted_similarity_path}")
-            print(f"Matrix shape: {self.weighted_similarity_matrix.shape}")
+            self.weighted_similarity_matrix = self.rebuild_similarity_matrix(weighted_similarity_path)
         else:
             print("Files required did not achieve.")
-            self.calculate_and_save_weighted_similarity_matrix(
-                tfidf_weight = self.tfidf_weight, 
-                w2v_weight = self.w2v_weight, 
-                lda_weight = self.lda_weight)
-            
+        
     def rebuild_similarity_matrix(self, filename):
         # loaded = np.load(filename)
         # data = loaded['data']
@@ -144,56 +105,38 @@ class newWeightedManager:
         print(f"Matrix shape: {matrix.shape}")
         
         return matrix
-            
-    def load_top_n_weighted_similarity(self, top_n_weighted_similarity_path):
-        """
-        加载已经计算好的top_n加权相似度
-        """
-        if os.path.exists(top_n_weighted_similarity_path):
-            with open(top_n_weighted_similarity_path, 'r') as f:
-                self.top_n_similarities = json.load(f)
-        else:
-            print("Files required did not achieve.")   
-            self.calculate_and_save_top_N_similarity(N)
         
     def validate_weights(self, tfidf_weight, word2vec_weight, lda_weight):
-        """
-        检查给出的weighting是否总和为1
-        """
         if not np.isclose(tfidf_weight + word2vec_weight + lda_weight, 1):
             raise ValueError("The sum of weights must be equal to 1")
             
     def check_doc_id_to_index_map(self):
-        """
-        检查doc_id_to_index_map是否加载到类实例
-        """
         if self.doc_id_to_index_map is None:
             print("doc_id_to_index_map not found")
 
+            
+    def load_top_n_weighted_similarity_matrix(self, top_n_weighted_similarity_path):
+        if os.path.exists(top_n_weighted_similarity_path):
+            with open(top_n_weighted_similarity_path, 'r') as f:
+                self.top_n_similarities = json.load(f)
+        else:
+            print("Files required did not achieve.")
+
+
     def check_similarity_matrices(self):
-        """
-        检查相似度矩阵是否存在于该实例
-        """
         if self.tfidf_similarity_matrix is None or self.w2v_similarity_matrix is None or self.lda_similarity_matrix is None:
             print("Similarity matrices not found, re-calculating")
-            self.load_similarity_matrix("tfidf_similarity_matrix.npz", "w2v_similarity_matrix.npz", "lda_similarity_matrix.npz")
-        
+
+
     def process_and_save_tfidf(self, tfidf_matrix):
-        """
-        计算并储存TFIDF相似度矩阵
-        """
         self.tfidf_similarity_matrix = self.calculate_similarity_matrix(tfidf_matrix, "tfidf")
 
+
     def process_and_save_w2v(self, w2v_matrix):
-        """
-        计算并储存W2V相似度矩阵
-        """
         self.w2v_similarity_matrix = self.calculate_similarity_matrix(w2v_matrix, "w2v")
 
+
     def process_and_save_lda(self, lda_matrix):
-        """
-        计算并储存LDA相似度矩阵
-        """
         self.lda_similarity_matrix = self.calculate_similarity_matrix(lda_matrix, "lda")
     
     def calculate_similarity_matrix(self, matrix, name):
@@ -224,10 +167,7 @@ class newWeightedManager:
         
         return sim_matrix
     
-    def calculate_and_save_top_N_similarity(self, N=20):
-        """
-        对每一个文档计算并储存最大的N个相似度文档为JSON
-        """
+    def calculate_top_N_similarity(self, N=20):
         if not hasattr(self, 'weighted_similarity_matrix'):
             raise AttributeError("weighted_similarity_matrix has not been calculated yet.")
     
@@ -270,16 +210,17 @@ class newWeightedManager:
     
         return self.top_n_similarity 
     
-    def calculate_and_save_weighted_similarity_matrix(self, tfidf_weight, w2v_weight, lda_weight):
-        """
-        使用三种模型的相似度举证进行相似度加权 返回加权后的加权相似度矩阵
-        """
+    def get_weighted_similarity_matrix(self, tfidf_weight, w2v_weight, lda_weight):
         # 验证权重
         self.validate_weights(tfidf_weight, w2v_weight, lda_weight)
         
         # 检查必要的数据是否已加载
         self.check_doc_id_to_index_map()
         self.check_similarity_matrices()
+        
+        # 确保所有相似度矩阵都已加载
+        if self.tfidf_similarity_matrix is None or self.w2v_similarity_matrix is None or self.lda_similarity_matrix is None:
+            raise ValueError("All similarity matrices must be loaded before calculating weighted similarity")
         
         # 计算加权相似度矩阵
         self.weighted_similarity_matrix = (
@@ -292,14 +233,17 @@ class newWeightedManager:
         np.savez_compressed("weighted_similarity", matrix=self.weighted_similarity_matrix, allow_pickle=True)
         return self.weighted_similarity_matrix
 
-    def get_weighted_similarity_by_id(self, tfidf_weight, word2vec_weight, lda_weight, doc1, doc2):
+    
+    def get_weighted_similarity(self, tfidf_weight, word2vec_weight, lda_weight, doc1, doc2):
         """
         输入权重和两个文档的id
         输出两个文档的加权相似度
         """
         # Validate the weights
         self.validate_weights(tfidf_weight, word2vec_weight, lda_weight)
+        
         self.check_doc_id_to_index_map()
+        
         self.check_similarity_matrices()
         
         doc1_index = self.doc_id_to_index_map.get(doc1)
@@ -325,11 +269,6 @@ class newWeightedManager:
         return weighted_similarity
     
     def get_similar_documents_for_lyrics(self, input_lyrics_list, tfidf_weight=0.33, w2v_weight=0.33, lda_weight=0.34, top_n=20):
-        """
-        输入一个歌词列表计算这些歌词在三个模型中的平均向量, 再计算各模型中当前平均向量与每个文档的相似度
-        对计算到的相似度进行加权, 最终返回top-n个相似度最高的文档
-        返回JSON格式
-        """
         # 确保输入是一个列表
         if not isinstance(input_lyrics_list, list):
             input_lyrics_list = [input_lyrics_list]
@@ -363,7 +302,7 @@ class newWeightedManager:
         w2v_avg_vector = np.mean(w2v_vectors, axis=0)
         lda_avg_vector = np.mean(lda_vectors, axis=0)
     
-        # 分别计算每种模型的相似度(当前平均向量与每个文档的相似度)
+        # 分别计算每种模型的相似度
         tfidf_similarities = cosine_similarity([tfidf_avg_vector], self.tfidf_matrix)[0]
         w2v_similarities = cosine_similarity([w2v_avg_vector], self.w2v_matrix)[0]
         lda_similarities = cosine_similarity([lda_avg_vector], self.lda_matrix)[0]
@@ -389,6 +328,41 @@ class newWeightedManager:
     
         return similar_documents
     
+    def init_manager(self, tfidf_weight, w2v_weight, lda_weight):
+        # Load matrix
+        if all(os.path.exists(f) for f in ['tfidf/tfidf_matrix.pkl', 'word2vec/song_vectors.npy', 'lda/lda_matrix.npy']):
+            self.load_matrix('tfidf/tfidf_matrix.pkl', 'word2vec/song_vectors.npy','lda/lda_matrix.npy')
+            
+        # Load ids mapping
+        if os.path.exists('tfidf/doc_id_to_index_map.json'):
+            self.load_doc_id_to_index_map('tfidf/doc_id_to_index_map.json')
+             
+            
+        # Load similarity matrix
+        if all(os.path.exists(f) for f in ["tfidf_similarity_matrix.npz", "w2v_similarity_matrix.npz", "lda_similarity_matrix.npz"]):
+            self.load_similarity_matrix("tfidf_similarity_matrix.npz", "w2v_similarity_matrix.npz", "lda_similarity_matrix.npz")
+        else:
+            print("Files required not achieved, recalculating similarity matrix")
+            self.process_and_save_tfidf(weighted_manager.tfidf_matrix)
+            self.process_and_save_w2v(weighted_manager.w2v_matrix)
+            self.process_and_save_lda(weighted_manager.lda_matrix)
+        
+        # Load weighted similarity matrix
+        if os.path.exists('weighted_similarity.npz'):
+            self.load_weighted_similarity_matrix('weighted_similarity.npz')
+        else:
+            print("Files required not achieved, recalculating weighted similarity matrix'")
+            self.get_weighted_similarity_matrix(tfidf_weight, w2v_weight, lda_weight)
+            
+        # Load top N Similar Weighted Similarity
+        if os.path.exists('top_weighted_similarity.json'):
+            self.load_top_n_weighted_similarity_matrix('top_weighted_similarity.json')
+
+        else:
+            print("Files required not achieved, recalculating top N weighted similarity matrix'")
+            self.calculate_top_N_similarity(N)
+            
+    
 
 
 if __name__ == "__main__":
@@ -396,29 +370,18 @@ if __name__ == "__main__":
     tfidf_weight = 0.2
     w2v_weight = 0.4
     lda_weight = 0.4
-    weighted_manager = newWeightedManager(tfidf_weight, w2v_weight, lda_weight, "tfidf/doc_id_to_index_map.json")
+    weighted_manager = WeightedManager(tfidf_weight, w2v_weight, lda_weight)
 
-    # Default Use to get similar documents by lyrics.
-    lyric="If he's cheatin', I'm doin' him worse (Like) No Uno, I hit the reverse (Grrah) I ain't trippin', the grip in my purse (Grrah) I don't care 'cause he did it first (Like) If he's cheatin', I'm doin' him worse (Damn) I ain't trippin', I— (I ain't trippin', I—) I ain't trippin', the grip in my purse (Like) I don't care 'cause he did it first"
-    lyric2="Honey, I'm a good man, but I'm a cheatin' man And I'll do all I can, to get a lady's love And I wanna do right, I don't wanna hurt nobody If I slip, well then I'm sorry, yes I am"
-    
-    similar_documents = weighted_manager.get_similar_documents_for_lyrics([lyric,lyric2],tfidf_weight, w2v_weight, lda_weight)
-    print(similar_documents)
-    
-    # To Generate Similarity matrix
-    tfidf_similarity_path = "tfidf_similarity_matrix.npz"
-    w2v_similarity_path = "w2v_similarity_matrix.npz"
-    lda_similarity_path = "lda_similarity_matrix.npz"
-    weighted_similarity_path = "weighted_similarity.npz"
-    
-    
-    
-    weighted_manager.load_similarity_matrix(tfidf_similarity_path, w2v_similarity_path, lda_similarity_path)
-    weighted_manager.load_weighted_similarity_matrix(weighted_similarity_path)
     
     weighted_similarity_from_matrix = weighted_manager.weighted_similarity_matrix[180][30913]
     print('Weighted similarity for [180][30913] :', weighted_similarity_from_matrix)
         
-    weighted_similarity = weighted_manager.get_weighted_similarity_by_id(tfidf_weight, w2v_weight, lda_weight,'65ffbfa9c1ab936c978e4dad','66858f1bc8fd49c0eaff1904')
+    weighted_similarity = weighted_manager.get_weighted_similarity(tfidf_weight, w2v_weight, lda_weight,'65ffbfa9c1ab936c978e4dad','66858f1bc8fd49c0eaff1904')
     print('Manual Calculated Weighted similarity for <65ffbfa9c1ab936c978e4dad>[180] and <66858f1bc8fd49c0eaff1904>[30913] :', weighted_similarity)
     
+    
+    lyric="If he's cheatin', I'm doin' him worse (Like) No Uno, I hit the reverse (Grrah) I ain't trippin', the grip in my purse (Grrah) I don't care 'cause he did it first (Like) If he's cheatin', I'm doin' him worse (Damn) I ain't trippin', I— (I ain't trippin', I—) I ain't trippin', the grip in my purse (Like) I don't care 'cause he did it first"
+    lyric2="Honey, I'm a good man, but I'm a cheatin' man And I'll do all I can, to get a lady's love And I wanna do right, I don't wanna hurt nobody If I slip, well then I'm sorry, yes I am"
+    
+    similar_documents = weighted_manager.get_similar_documents_for_lyrics([lyric,lyric2])
+    print(similar_documents)

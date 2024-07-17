@@ -6,7 +6,7 @@ from flask_cors import CORS
 # from WeightedManager import WeightedManager
 from pymongo import MongoClient
 import json
-from newWeightedManager import newWeightedManager
+from weightedManager import weightedManager
 
 app = Flask(__name__)
 CORS(app)  # 这将为所有路由启用 CORS
@@ -35,7 +35,7 @@ tracks_collection = db['tracks']
 default_tfidf_weight = 0.2
 default_w2v_weight = 0.4
 default_lda_weight = 0.4
-weighted_manager = newWeightedManager(default_tfidf_weight, default_w2v_weight, 
+weighted_manager = weightedManager(default_tfidf_weight, default_w2v_weight, 
                                       default_lda_weight,"tfidf/doc_id_to_index_map.json")
 
 
