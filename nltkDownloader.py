@@ -1,0 +1,1 @@
+import nltk# 下载需要的NLTK数据nltk.download('words')nltk.download('punkt')nltk.download('averaged_perceptron_tagger')print("NLTK数据下载完成")

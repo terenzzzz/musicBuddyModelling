@@ -1,13 +1,12 @@
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify
 from flask_cors import CORS
-from lda import LDAModelManager
-from word2vec import Word2VecManager
-from tfidf import TFIDFManager
-from WeightedManager import WeightedManager
-import os
+# from lda import LDAModelManager
+# from word2vec import Word2VecManager
+# from tfidf import TFIDFManager
+# from WeightedManager import WeightedManager
 from pymongo import MongoClient
-from bson import ObjectId
 import json
+from newWeightedManager import newWeightedManager
 
 app = Flask(__name__)
 CORS(app)  # 这将为所有路由启用 CORS
@@ -33,18 +32,17 @@ tracks_collection = db['tracks']
 
 
 # # Load Weighted similarity
-tfidf_weight = 0.2
-w2v_weight = 0.4
-lda_weight = 0.4
-weighted_manager = WeightedManager(tfidf_weight, w2v_weight, lda_weight)
-
-
-
+default_tfidf_weight = 0.2
+default_w2v_weight = 0.4
+default_lda_weight = 0.4
+weighted_manager = newWeightedManager(default_tfidf_weight, default_w2v_weight, 
+                                      default_lda_weight,"tfidf/doc_id_to_index_map.json")
 
 
 @app.route('/recommend', methods=['GET'])
 def recommend():
     return jsonify("Hello World")
+
 
 @app.route('/getTrackTopic', methods=['GET'])
 def getTrackTopic():
