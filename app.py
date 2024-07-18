@@ -121,11 +121,17 @@ def getWeightedRecommendByLyrics():
         # 从请求体中获取数组
         data = request.get_json()
         lyric = data['lyric']
+        tfidf_weight = data['tfidf_weight']
+        w2v_weight = data['w2v_weight']
+        lda_weight = data['lda_weight']
         if not lyric:
             return jsonify({"error": "Missing 'lyric' parameter"}), 400
         
         try:   
-            response = weighted_manager.get_similar_documents_for_lyrics(lyric)
+            response = weighted_manager.get_similar_documents_for_lyrics(lyric, 
+                                                                         tfidf_weight, 
+                                                                         w2v_weight, 
+                                                                         lda_weight)
             return jsonify(response), 200
         except json.JSONDecodeError:
             return jsonify({"error": "Invalid 'lyric' format. Expected a JSON array."}), 400

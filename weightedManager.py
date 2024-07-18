@@ -333,6 +333,8 @@ class weightedManager:
         # 确保输入是一个列表
         if not isinstance(input_lyrics_list, list):
             input_lyrics_list = [input_lyrics_list]
+            
+        self.validate_weights(tfidf_weight,w2v_weight,lda_weight)
     
         # 预处理输入的歌词列表
         preprocessor = Preprocessor()

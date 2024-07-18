@@ -1,11 +1,8 @@
-from scipy.sparse import csr_matrix, save_npz, lil_matrix
 from sklearn.metrics.pairwise import cosine_similarity
 import pickle
 import numpy as np
-import multiprocessing
 import json
 import os
-import tqdm
 from preprocessor import Preprocessor
 from lda import LDAModelManager
 from word2vec import Word2VecManager

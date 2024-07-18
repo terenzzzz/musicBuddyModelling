@@ -7,7 +7,6 @@ from gensim.models import Word2Vec
 import multiprocessing
 from tqdm import tqdm
 import os
-import logging
 import time
 import matplotlib.pyplot as plt
 

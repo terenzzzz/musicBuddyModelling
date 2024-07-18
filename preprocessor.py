@@ -1,14 +1,11 @@
 import nltk
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
-from nltk import pos_tag
 from functools import lru_cache
 from tqdm import tqdm
 from langdetect import detect_langs
 import re
 from pymongo import MongoClient
-import json
-
 
 
 class Preprocessor:

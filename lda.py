@@ -11,7 +11,6 @@ import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 import json
 import matplotlib.pyplot as plt
-import numpy as np
 
 
 class LDAModelManager:
