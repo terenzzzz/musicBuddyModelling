@@ -209,14 +209,39 @@ class TFIDFManager:
         return similar_documents
 
     def get_top_words(self, doc_id):
-        
-        
         top_words = None
         for item in self.top_keywords_per_doc:
             if item['track']['$oid'] == doc_id:
                 top_words = item['topwords']
                 break
         return top_words
+    
+    def get_top_words_by_lyric(self, lyric, top_n=10):
+        # 预处理输入的歌词
+        processed_inputs = self.preprocessor.preprocess_lyrics([lyric])
+        
+        # 使用训练好的 TF-IDF 模型转换预处理后的歌词
+        tfidf_matrix = self.vectorizer.transform(processed_inputs)
+        
+        # 获取特征名称（单词）
+        feature_names = self.vectorizer.get_feature_names_out()
+        
+        # 获取 TF-IDF 分数
+        tfidf_scores = tfidf_matrix.toarray()[0]
+        
+        # 创建 (单词, TF-IDF 分数) 的元组列表
+        word_scores = list(zip(feature_names, tfidf_scores))
+        
+        # 按 TF-IDF 分数降序排序
+        word_scores.sort(key=lambda x: x[1], reverse=True)
+        
+        # 获取前 top_n 个单词及其分数
+        top_words = word_scores[:top_n]
+        
+        # 转换为字典格式，将分数转换为 float 类型
+        top_words_dict = [{'word': word, 'value': float(score)} for word, score in top_words]
+        
+        return top_words_dict
     
     def get_similar_documents_for_lyrics(self, input_lyrics_list, top_n=20):
         # 确保输入是一个列表
@@ -274,6 +299,10 @@ if __name__ == "__main__":
         
         similar_documents = tfidf_manager.get_similar_documents_for_lyrics([lyric,lyric2])
         print(similar_documents)
+        
+        
+        top_words = tfidf_manager.get_top_words_by_lyric(lyric)
+        print(top_words)
         
         
         

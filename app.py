@@ -32,16 +32,27 @@ tracks_collection = db['tracks']
 
 
 # # Load Weighted similarity
-default_tfidf_weight = 0.2
-default_w2v_weight = 0.4
-default_lda_weight = 0.4
+default_tfidf_weight = 0.33
+default_w2v_weight = 0.33
+default_lda_weight = 0.34
 weighted_manager = weightedManager(default_tfidf_weight, default_w2v_weight, 
                                       default_lda_weight,"tfidf/doc_id_to_index_map.json")
 
 
-@app.route('/recommend', methods=['GET'])
-def recommend():
-    return jsonify("Hello World")
+@app.route('/getLyricTopWordsByLyric', methods=['POST'])
+def getLyricTopWordsByLyric():
+    data = request.get_json()
+    lyric = data['lyric']
+    if not lyric:
+        return jsonify({"error": "Missing 'lyric' parameter"}), 400
+    
+    try:
+        response = weighted_manager.tfidf_manager.get_top_words_by_lyric(lyric)
+        if response is None:
+            return jsonify({"error": "Song not found"}), 404
+        return jsonify(response), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/getTrackTopic', methods=['GET'])
@@ -57,8 +68,22 @@ def getTrackTopic():
         return jsonify(response), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    
 
+@app.route('/getTrackTopicByLyric', methods=['POST'])
+def getTrackTopicByLyric():
+    data = request.get_json()
+    lyric = data['lyric']
+    if not lyric:
+        return jsonify({"error": "Missing 'lyric' parameter"}), 400
+    
+    try:
+        response = weighted_manager.lda_manager.get_song_topics_by_lyric(lyric)
+        if response is None:
+            return jsonify({"error": "Song not found"}), 404
+        return jsonify(response), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
 
 @app.route('/getTfidfRecommendByLyrics', methods=['POST'])
 def getTfidfRecommendByLyrics():

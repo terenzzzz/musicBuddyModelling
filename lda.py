@@ -131,6 +131,30 @@ class LDAModelManager:
         print(result)
         return result
     
+    def get_song_topics_by_lyric(self, lyric):
+        # 预处理歌词
+        lyric_processed = self.preprocessor.preprocess_lyrics([lyric])[0]
+        lyric_bow = self.dictionary.doc2bow(word_tokenize(lyric_processed))
+        
+        # 获取该歌曲的主题分布
+        topic_distribution = self.lda_model.get_document_topics(lyric_bow)
+        
+        # 按照主题概率排序
+        sorted_topics = sorted(topic_distribution, key=lambda x: x[1], reverse=True)
+        
+        # 返回主题分布和主题词
+        result = []
+        for topic_id, prob in sorted_topics:
+            topic_words = self.lda_model.show_topic(topic_id, topn=10)
+            result.append({
+                'topic_id': int(topic_id),
+                'probability': float(prob),
+                'top_words': [word for word, _ in topic_words]
+            })
+        
+        return result
+    
+    
 
     def evaluate_model(self):
         topic_nums = list(range(10, 101, 5))
@@ -311,6 +335,9 @@ if __name__ == "__main__":
         
         similar_documents = lda_manager.get_similar_documents_for_lyrics([lyric,lyric2])
         print(similar_documents)
+        
+        track_topic_by_lyric = lda_manager.get_song_topics_by_lyric(lyric)
+        print(f"track_topic_by_lyric: {track_topic_by_lyric}")
         
         # lda_manager.get_song_topics('65ffc183c1ab936c978f29a8')
         
