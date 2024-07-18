@@ -339,36 +339,51 @@ class weightedManager:
         # 预处理输入的歌词列表
         preprocessor = Preprocessor()
         processed_inputs = preprocessor.preprocess_lyrics(input_lyrics_list)
+        
     
         # 初始化三种模型的向量列表
         tfidf_vectors = []
         w2v_vectors = []
         lda_vectors = []
-    
+        
         for lyrics in processed_inputs:
+            if not lyrics.strip():  # 如果歌词为空，跳过
+                continue
+            
             # TF-IDF 向量
             tfidf_vector = self.tfidf_manager.vectorizer.transform([lyrics]).toarray()[0]
             tfidf_vectors.append(tfidf_vector)
             
             # Word2Vec 向量
             tokens = lyrics.split()
-            w2v_vector = np.mean([self.w2v_manager.w2v_model.wv[word] for word in tokens if word in self.w2v_manager.w2v_model.wv], axis=0)
+            valid_vectors = [self.w2v_manager.w2v_model.wv[word] for word in tokens if word in self.w2v_manager.w2v_model.wv]
+            if valid_vectors:
+                w2v_vector = np.mean(valid_vectors, axis=0)
+            else:
+                w2v_vector = np.zeros(self.w2v_manager.w2v_model.vector_size)
             w2v_vectors.append(w2v_vector)
             
             # LDA 向量
             bow = self.lda_manager.dictionary.doc2bow(tokens)
             lda_vector = [prob for (_, prob) in self.lda_manager.lda_model.get_document_topics(bow, minimum_probability=0)]
+            if not lda_vector:
+                lda_vector = np.zeros(self.lda_manager.lda_model.num_topics)
             lda_vectors.append(lda_vector)
-    
-        # 计算每种模型的平均向量
-        tfidf_avg_vector = np.mean(tfidf_vectors, axis=0)
-        w2v_avg_vector = np.mean(w2v_vectors, axis=0)
-        lda_avg_vector = np.mean(lda_vectors, axis=0)
-    
-        # 分别计算每种模型的相似度(当前平均向量与每个文档的相似度)
-        tfidf_similarities = cosine_similarity([tfidf_avg_vector], self.tfidf_matrix)[0]
-        w2v_similarities = cosine_similarity([w2v_avg_vector], self.w2v_matrix)[0]
-        lda_similarities = cosine_similarity([lda_avg_vector], self.lda_matrix)[0]
+        
+        # 计算每种模型的平均向量，确保不会得到 NaN
+        tfidf_avg_vector = np.nanmean(tfidf_vectors, axis=0)
+        w2v_avg_vector = np.nanmean(w2v_vectors, axis=0)
+        lda_avg_vector = np.nanmean(lda_vectors, axis=0)
+        
+        # 确保平均向量是 2D 数组
+        tfidf_avg_vector = tfidf_avg_vector.reshape(1, -1)
+        w2v_avg_vector = w2v_avg_vector.reshape(1, -1)
+        lda_avg_vector = lda_avg_vector.reshape(1, -1)
+        
+        # 分别计算每种模型的相似度
+        tfidf_similarities = cosine_similarity(tfidf_avg_vector, self.tfidf_matrix)[0]
+        w2v_similarities = cosine_similarity(w2v_avg_vector, self.w2v_matrix)[0]
+        lda_similarities = cosine_similarity(lda_avg_vector, self.lda_matrix)[0]
     
         # 对相似度进行加权
         weighted_similarities = (
