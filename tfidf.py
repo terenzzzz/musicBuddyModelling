@@ -216,23 +216,27 @@ class TFIDFManager:
                 break
         return top_words
     
-    def get_top_words_by_lyric(self, lyric, top_n=10):
-        # 预处理输入的歌词
-        processed_inputs = self.preprocessor.preprocess_lyrics([lyric])
+    def get_top_words_by_lyric(self, input_lyrics_list, top_n=20):
+        # 确保输入是一个列表
+        if not isinstance(input_lyrics_list, list):
+            input_lyrics_list = [input_lyrics_list]
+        
+        # 预处理输入的歌词数组
+        processed_inputs = self.preprocessor.preprocess_lyrics(input_lyrics_list)
         
         # 使用训练好的 TF-IDF 模型转换预处理后的歌词
         tfidf_matrix = self.vectorizer.transform(processed_inputs)
         
+        # 计算平均 TF-IDF 向量
+        avg_tfidf_vector = np.mean(tfidf_matrix.toarray(), axis=0)
+        
         # 获取特征名称（单词）
         feature_names = self.vectorizer.get_feature_names_out()
         
-        # 获取 TF-IDF 分数
-        tfidf_scores = tfidf_matrix.toarray()[0]
+        # 创建 (单词, 平均 TF-IDF 分数) 的元组列表，只包括分数不为 0 的词
+        word_scores = [(word, score) for word, score in zip(feature_names, avg_tfidf_vector) if score > 0]
         
-        # 创建 (单词, TF-IDF 分数) 的元组列表
-        word_scores = list(zip(feature_names, tfidf_scores))
-        
-        # 按 TF-IDF 分数降序排序
+        # 按平均 TF-IDF 分数降序排序
         word_scores.sort(key=lambda x: x[1], reverse=True)
         
         # 获取前 top_n 个单词及其分数
@@ -241,6 +245,9 @@ class TFIDFManager:
         # 转换为字典格式，将分数转换为 float 类型
         top_words_dict = [{'word': word, 'value': float(score)} for word, score in top_words]
         
+        return top_words_dict
+
+
         return top_words_dict
     
     def get_similar_documents_for_lyrics(self, input_lyrics_list, top_n=20):
@@ -301,7 +308,7 @@ if __name__ == "__main__":
         print(similar_documents)
         
         
-        top_words = tfidf_manager.get_top_words_by_lyric(lyric)
+        top_words = tfidf_manager.get_top_words_by_lyric([lyric,lyric2])
         print(top_words)
         
         

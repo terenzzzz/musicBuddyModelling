@@ -11,6 +11,8 @@ import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 import json
 import matplotlib.pyplot as plt
+from gensim import matutils
+import nltk
 
 
 class LDAModelManager:
@@ -29,7 +31,6 @@ class LDAModelManager:
         self.preprocessor = Preprocessor()
         self.processed_lyrics = None
         
-         
     def load_preprocessed_data(self):
         client = MongoClient(self.mongo_uri)
         db = client[self.db_name]
@@ -57,7 +58,6 @@ class LDAModelManager:
             # 不存在则重新处理
             lyrics = [doc.get('lyric', '') for doc in self.tracks_documents if isinstance(doc.get('lyric', None), str)]
             self.processed_lyrics = self.preprocessor.preprocess_lyrics(lyrics)
-
 
     def load_mongo_and_train(self, num_topics=50, output_dir='lda'):
         self.load_preprocessed_data()
@@ -107,8 +107,7 @@ class LDAModelManager:
         
         print(f"Model outputs saved to {output_dir}")
         
-        
-    def get_song_topics(self, song_id):
+    def get_topics(self, song_id):
         # 找到歌曲在语料库中的索引
         index = self.doc_id_to_index_map.get(song_id)
     
@@ -130,14 +129,32 @@ class LDAModelManager:
     
         print(result)
         return result
-    
-    def get_song_topics_by_lyric(self, lyric):
-        # 预处理歌词
-        lyric_processed = self.preprocessor.preprocess_lyrics([lyric])[0]
-        lyric_bow = self.dictionary.doc2bow(word_tokenize(lyric_processed))
+
+    def get_topics_by_lyric(self, input_lyrics_list):
+        if not isinstance(input_lyrics_list, list):
+            input_lyrics_list = [input_lyrics_list]
         
-        # 获取该歌曲的主题分布
-        topic_distribution = self.lda_model.get_document_topics(lyric_bow)
+        # 预处理输入的歌词列表
+        processed_inputs = self.preprocessor.preprocess_lyrics(input_lyrics_list)
+        
+        # 确保每个处理后的输入是单词列表
+        tokenized_inputs = [nltk.word_tokenize(text) if isinstance(text, str) else text 
+                            for text in processed_inputs]
+        
+        # 将处理后的歌词转换为词袋表示
+        lyrics_bow = [self.dictionary.doc2bow(words) for words in tokenized_inputs]
+        
+        # 转换词袋表示为稀疏矩阵
+        lyrics_matrix = matutils.corpus2csc(lyrics_bow, num_terms=len(self.dictionary)).T
+        
+        # 计算平均向量
+        avg_vector = np.mean(lyrics_matrix, axis=0)
+        
+        # 将平均向量转回词袋格式
+        avg_bow = [(idx, float(value)) for idx, value in enumerate(avg_vector.A1) if value > 0]
+        
+        # 获取平均向量的主题分布
+        topic_distribution = self.lda_model.get_document_topics(avg_bow)
         
         # 按照主题概率排序
         sorted_topics = sorted(topic_distribution, key=lambda x: x[1], reverse=True)
@@ -153,8 +170,6 @@ class LDAModelManager:
             })
         
         return result
-    
-    
 
     def evaluate_model(self):
         topic_nums = list(range(10, 101, 5))
@@ -235,7 +250,6 @@ class LDAModelManager:
         print("Topic distribution:")
         pprint(sorted(self.lda_model[new_lyric_bow], key=lambda x: x[1], reverse=True))
 
-
     def get_document_topic_matrix(self, num_topics):
         doc_topic_matrix = np.zeros((len(self.corpus), num_topics))
         for i, doc_bow in enumerate(self.corpus):
@@ -269,7 +283,6 @@ class LDAModelManager:
             })
 
         return top_similarities_json
-    
     
     def get_similar_documents_for_lyrics(self, input_lyrics_list, top_n=20):
         # 确保输入是一个列表
@@ -336,7 +349,7 @@ if __name__ == "__main__":
         similar_documents = lda_manager.get_similar_documents_for_lyrics([lyric,lyric2])
         print(similar_documents)
         
-        track_topic_by_lyric = lda_manager.get_song_topics_by_lyric(lyric)
+        track_topic_by_lyric = lda_manager.get_topics_by_lyric([lyric,lyric2])
         print(f"track_topic_by_lyric: {track_topic_by_lyric}")
         
         # lda_manager.get_song_topics('65ffc183c1ab936c978f29a8')

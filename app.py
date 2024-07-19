@@ -62,7 +62,7 @@ def getTrackTopic():
         return jsonify({"error": "Missing 'track' parameter"}), 400
     
     try:
-        response = weighted_manager.lda_manager.get_song_topics(song_id)
+        response = weighted_manager.lda_manager.get_topics(song_id)
         if response is None:
             return jsonify({"error": "Song not found"}), 404
         return jsonify(response), 200
@@ -77,7 +77,7 @@ def getTrackTopicByLyric():
         return jsonify({"error": "Missing 'lyric' parameter"}), 400
     
     try:
-        response = weighted_manager.lda_manager.get_song_topics_by_lyric(lyric)
+        response = weighted_manager.lda_manager.get_topics_by_lyric(lyric)
         if response is None:
             return jsonify({"error": "Song not found"}), 404
         return jsonify(response), 200
