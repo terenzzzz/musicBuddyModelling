@@ -133,32 +133,17 @@ class LDAModelManager:
     def get_topics_by_lyric(self, input_lyrics_list):
         if not isinstance(input_lyrics_list, list):
             input_lyrics_list = [input_lyrics_list]
-        
-        # 预处理输入的歌词列表
-        processed_inputs = self.preprocessor.preprocess_lyrics(input_lyrics_list)
-        
-        # 确保每个处理后的输入是单词列表
-        tokenized_inputs = [nltk.word_tokenize(text) if isinstance(text, str) else text 
-                            for text in processed_inputs]
-        
-        # 将处理后的歌词转换为词袋表示
-        lyrics_bow = [self.dictionary.doc2bow(words) for words in tokenized_inputs]
-        
-        # 转换词袋表示为稀疏矩阵
-        lyrics_matrix = matutils.corpus2csc(lyrics_bow, num_terms=len(self.dictionary)).T
-        
-        # 计算平均向量
-        avg_vector = np.mean(lyrics_matrix, axis=0)
-        
-        # 将平均向量转回词袋格式
-        avg_bow = [(idx, float(value)) for idx, value in enumerate(avg_vector.A1) if value > 0]
-        
+    
         # 获取平均向量的主题分布
-        topic_distribution = self.lda_model.get_document_topics(avg_bow)
-        
+        average_vector = self.compute_mean_vector(input_lyrics_list)
+    
+        # 将平均向量转换为 (主题编号, 概率) 的格式
+        num_topics = len(average_vector)
+        topic_distribution = [(i, float(prob)) for i, prob in enumerate(average_vector)]
+    
         # 按照主题概率排序
         sorted_topics = sorted(topic_distribution, key=lambda x: x[1], reverse=True)
-        
+    
         # 返回主题分布和主题词
         result = []
         for topic_id, prob in sorted_topics:
@@ -168,7 +153,7 @@ class LDAModelManager:
                 'probability': float(prob),
                 'top_words': [word for word, _ in topic_words]
             })
-        
+    
         return result
 
     def evaluate_model(self):
@@ -289,19 +274,9 @@ class LDAModelManager:
         if not isinstance(input_lyrics_list, list):
             input_lyrics_list = [input_lyrics_list]
     
-        # 预处理输入的歌词列表
-        processed_inputs = self.preprocessor.preprocess_lyrics(input_lyrics_list)
-    
-        # 将预处理后的歌词转换为LDA向量
-        input_vectors = []
-        for lyrics in processed_inputs:
-            bow = self.dictionary.doc2bow(word_tokenize(lyrics))
-            vector = self.lda_model.get_document_topics(bow, minimum_probability=0)
-            vector = [prob for (_, prob) in sorted(vector)]
-            input_vectors.append(vector)
-    
+        
         # 计算平均LDA向量
-        average_vector = np.mean(input_vectors, axis=0)
+        average_vector = self.compute_mean_vector(input_lyrics_list)
     
 
         # 计算平均向量与所有文档的余弦相似度
@@ -321,8 +296,22 @@ class LDAModelManager:
     
         return similar_documents
 
+    def compute_mean_vector(self,lyrics):
+        # 预处理输入的歌词列表
+        processed_inputs = self.preprocessor.preprocess_lyrics(lyrics)
     
+        # 将预处理后的歌词转换为LDA向量
+        input_vectors = []
+        for lyrics in processed_inputs:
+            bow = self.dictionary.doc2bow(word_tokenize(lyrics))
+            vector = self.lda_model.get_document_topics(bow, minimum_probability=0)
+            vector = [prob for (_, prob) in sorted(vector)]
+            input_vectors.append(vector)
     
+        # 计算平均LDA向量
+        average_vector = np.mean(input_vectors, axis=0)
+        
+        return average_vector
 
 if __name__ == "__main__":
     lda_manager = LDAModelManager()

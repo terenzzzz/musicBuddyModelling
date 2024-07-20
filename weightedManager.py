@@ -4,7 +4,6 @@
 
 
 from sklearn.metrics.pairwise import cosine_similarity
-import pickle
 import numpy as np
 import json
 import os
@@ -16,19 +15,21 @@ from tfidf import TFIDFManager
         
 class weightedManager:
     
-    def __init__(self,tfidf_weight, w2v_weight, lda_weight, doc_id_to_index_map_path):
+    def __init__(self,tfidf_manager,w2v_manager,lda_manager,
+                 tfidf_weight, w2v_weight, lda_weight, 
+                 doc_id_to_index_map_path):
         self.preprocessor = Preprocessor() # 预处理器
         self.doc_id_to_index_map = None # 文档id和索引映射, 用来通过id查找索引
         
         # 三种模型
-        self.tfidf_manager = None
-        self.w2v_manager = None
-        self.lda_manager = None
+        self.tfidf_manager = tfidf_manager
+        self.w2v_manager = w2v_manager
+        self.lda_manager = lda_manager
         
         # 三种模型的向量矩阵
-        self.tfidf_matrix = None
-        self.w2v_matrix = None
-        self.lda_matrix = None
+        self.tfidf_matrix = tfidf_manager.tfidf_matrix
+        self.w2v_matrix = w2v_manager.song_vectors
+        self.lda_matrix = lda_manager.doc_topic_matrix
         
         # 相似度矩阵
         self.tfidf_similarity_matrix = None
@@ -44,46 +45,11 @@ class weightedManager:
         
         # 初始化
         self.validate_weights(tfidf_weight, w2v_weight, lda_weight)
-        self.init_models() #从文件中加载三种模型
         self.load_doc_id_to_index_map(doc_id_to_index_map_path) #从文件中加载文档id与索引的映射
         # self.init_manager(tfidf_weight, w2v_weight, lda_weight)
         
-    def init_models(self):
-        """
-        从文件中加载三种模型
-        """
-        # Load tfidf model
-        tfidf_manager = TFIDFManager()
-        tfidf_manager.load_from_file("tfidf")
-        self.tfidf_manager = tfidf_manager
-        self.tfidf_matrix = tfidf_manager.tfidf_matrix
 
-        # Load word2vec model
-        w2v_manager = Word2VecManager()
-        w2v_manager.load_from_file("word2vec")
-        self.w2v_manager = w2v_manager
-        self.w2v_matrix = w2v_manager.song_vectors
-
-        # Load lda model
-        lda_manager = LDAModelManager()
-        lda_manager.load_from_file("lda")
-        self.lda_manager = lda_manager
-        self.lda_matrix = lda_manager.doc_topic_matrix
         
-    def load_matrix(self, tfidf_matrix_path, w2v_matrix_path, lda_matrix_path):
-        """
-        从文件中加载三种模型的向量矩阵
-        """
-        if all(os.path.exists(f) for f in [tfidf_matrix_path, w2v_matrix_path, lda_matrix_path]):
-            with open(tfidf_matrix_path, 'rb') as f:
-                self.tfidf_matrix = pickle.load(f)
-            self.w2v_matrix = np.load(w2v_matrix_path)
-            self.lda_matrix = np.load(lda_matrix_path)
-            print("TF-IDF shape:", self.tfidf_matrix.shape)
-            print("W2V shape:", self.w2v_matrix.shape)
-            print("LDA shape:", self.lda_matrix.shape)
-        else:
-            print("Files required did not achieve.")
         
     def load_doc_id_to_index_map(self, doc_id_to_index_map_path):
         """
@@ -413,7 +379,23 @@ if __name__ == "__main__":
     tfidf_weight = 0.2
     w2v_weight = 0.4
     lda_weight = 0.4
-    weighted_manager = weightedManager(tfidf_weight, w2v_weight, lda_weight, "tfidf/doc_id_to_index_map.json")
+    
+    # Load tfidf model
+    tfidf_manager = TFIDFManager()
+    tfidf_manager.load_from_file("tfidf")
+
+    # # Load word2vec model
+    w2v_manager = Word2VecManager()
+    w2v_manager.load_from_file("word2vec")
+
+    # Load lda model
+    lda_manager = LDAModelManager()
+    lda_manager.load_from_file("lda")
+    
+    
+    weighted_manager = weightedManager(tfidf_manager,w2v_manager,lda_manager, 
+                                       tfidf_weight, w2v_weight, lda_weight, 
+                                       "tfidf/doc_id_to_index_map.json")
 
     # Default Use to get similar documents by lyrics.
     lyric="If he's cheatin', I'm doin' him worse (Like) No Uno, I hit the reverse (Grrah) I ain't trippin', the grip in my purse (Grrah) I don't care 'cause he did it first (Like) If he's cheatin', I'm doin' him worse (Damn) I ain't trippin', I— (I ain't trippin', I—) I ain't trippin', the grip in my purse (Like) I don't care 'cause he did it first"

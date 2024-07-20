@@ -203,19 +203,9 @@ class Word2VecManager:
         # 确保输入是一个列表
         if not isinstance(input_lyrics_list, list):
             input_lyrics_list = [input_lyrics_list]
-    
-        # 预处理输入的歌词列表
-        processed_inputs = self.preprocessor.preprocess_lyrics(input_lyrics_list)
-    
-        # 计算每首歌的 W2V 向量
-        input_vectors = []
-        for lyrics in processed_inputs:
-            tokens = lyrics.split()
-            song_vector = self.get_song_vector(tokens)
-            input_vectors.append(song_vector)
-    
+
         # 计算平均向量
-        average_vector = np.mean(input_vectors, axis=0)
+        average_vector = self.compute_mean_vector(input_lyrics_list)
     
         # 计算平均向量与所有文档的余弦相似度
         cosine_similarities = cosine_similarity([average_vector], self.song_vectors)[0]
@@ -234,6 +224,21 @@ class Word2VecManager:
     
         return similar_documents
 
+    def compute_mean_vector(self,lyrics):
+        # 预处理输入的歌词列表
+        processed_inputs = self.preprocessor.preprocess_lyrics(lyrics)
+        
+        # 计算每首歌的 W2V 向量
+        input_vectors = []
+        for lyrics in processed_inputs:
+            tokens = lyrics.split()
+            song_vector = self.get_song_vector(tokens)
+            input_vectors.append(song_vector)
+        
+        # 计算平均向量
+        average_vector = np.mean(input_vectors, axis=0)
+        
+        return average_vector
     
 
 if __name__ == "__main__":
