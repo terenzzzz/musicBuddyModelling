@@ -221,20 +221,15 @@ class TFIDFManager:
         if not isinstance(input_lyrics_list, list):
             input_lyrics_list = [input_lyrics_list]
         
-        # 预处理输入的歌词数组
-        processed_inputs = self.preprocessor.preprocess_lyrics(input_lyrics_list)
-        
-        # 使用训练好的 TF-IDF 模型转换预处理后的歌词
-        tfidf_matrix = self.vectorizer.transform(processed_inputs)
         
         # 计算平均 TF-IDF 向量
-        avg_tfidf_vector = np.mean(tfidf_matrix.toarray(), axis=0)
+        average_vector = self.compute_mean_vector(input_lyrics_list)
         
         # 获取特征名称（单词）
         feature_names = self.vectorizer.get_feature_names_out()
         
         # 创建 (单词, 平均 TF-IDF 分数) 的元组列表，只包括分数不为 0 的词
-        word_scores = [(word, score) for word, score in zip(feature_names, avg_tfidf_vector) if score > 0]
+        word_scores = [(word, score) for word, score in zip(feature_names, average_vector) if score > 0]
         
         # 按平均 TF-IDF 分数降序排序
         word_scores.sort(key=lambda x: x[1], reverse=True)
@@ -254,15 +249,9 @@ class TFIDFManager:
         # 确保输入是一个列表
         if not isinstance(input_lyrics_list, list):
             input_lyrics_list = [input_lyrics_list]
-    
-        # 预处理输入的歌词列表
-        processed_inputs = self.preprocessor.preprocess_lyrics(input_lyrics_list)
-    
-        # 使用已训练的vectorizer将预处理后的歌词转换为TF-IDF向量
-        input_vectors = self.vectorizer.transform(processed_inputs)
-    
+
         # 计算平均TF-IDF向量并转换为numpy数组
-        average_vector = np.asarray(input_vectors.mean(axis=0)).flatten()
+        average_vector = self.compute_mean_vector(input_lyrics_list)
     
         # 计算平均向量与所有文档的余弦相似度
         cosine_similarities = cosine_similarity(average_vector.reshape(1, -1), self.tfidf_matrix).flatten()
@@ -280,6 +269,19 @@ class TFIDFManager:
             })
     
         return similar_documents
+    
+    def compute_mean_vector(self,lyrics):
+        # 预处理输入的歌词数组
+        processed_inputs = self.preprocessor.preprocess_lyrics(lyrics)
+        
+        # 使用训练好的 TF-IDF 模型转换预处理后的歌词
+        tfidf_matrix = self.vectorizer.transform(processed_inputs)
+        
+        # 计算平均 TF-IDF 向量
+        average_vector = np.asarray(tfidf_matrix.mean(axis=0)).flatten()
+        
+        return average_vector
+        
 
 if __name__ == "__main__":
     tfidf_manager = TFIDFManager()
