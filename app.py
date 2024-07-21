@@ -248,6 +248,81 @@ def getWeightedRecommendArtistsByArtist():
         print(f"Error: {str(e)}")  # Print detailed error information
         return jsonify({"error": str(e)}), 500
     
+@app.route('/getTfidfRecommendArtistsByLyrics', methods=['POST'])
+def getTfidfRecommendArtistsByLyrics():
+    try:
+        # 从请求体中获取数组
+        data = request.get_json()
+        lyrics = data['lyrics']
+        if not lyrics:
+            return jsonify({"error": "Missing 'lyrics' parameter"}), 400
+        
+        try:   
+            response = artist_manager.get_tfidf_similar_artists_by_lyrics(lyrics)
+            return jsonify(response), 200
+        except json.JSONDecodeError:
+            return jsonify({"error": "Invalid 'lyric' format. Expected a JSON array."}), 400
+    except Exception as e:
+        print(f"Error: {str(e)}")  # Print detailed error information
+        return jsonify({"error": str(e)}), 500
+    
+@app.route('/getW2VRecommendArtistsByLyrics', methods=['POST'])
+def getW2VRecommendArtistsByLyrics():
+    try:
+        # 从请求体中获取数组
+        data = request.get_json()
+        lyrics = data['lyrics']
+        if not lyrics:
+            return jsonify({"error": "Missing 'lyrics' parameter"}), 400
+        
+        try:   
+            response = artist_manager.get_w2v_similar_artists_by_lyrics(lyrics)
+            return jsonify(response), 200
+        except json.JSONDecodeError:
+            return jsonify({"error": "Invalid 'lyric' format. Expected a JSON array."}), 400
+    except Exception as e:
+        print(f"Error: {str(e)}")  # Print detailed error information
+        return jsonify({"error": str(e)}), 500
+    
+@app.route('/getLDARecommendArtistsByLyrics', methods=['POST'])
+def getLDARecommendArtistsByLyrics():
+    try:
+        # 从请求体中获取数组
+        data = request.get_json()
+        lyrics = data['lyrics']
+        if not lyrics:
+            return jsonify({"error": "Missing 'lyrics' parameter"}), 400
+        
+        try:   
+            response = artist_manager.get_lda_similar_artists_by_lyrics(lyrics)
+            return jsonify(response), 200
+        except json.JSONDecodeError:
+            return jsonify({"error": "Invalid 'lyric' format. Expected a JSON array."}), 400
+    except Exception as e:
+        print(f"Error: {str(e)}")  # Print detailed error information
+        return jsonify({"error": str(e)}), 500
+    
+@app.route('/getWeightedRecommendArtistsByLyrics', methods=['POST'])
+def getWeightedRecommendArtistsByLyrics():
+    try:
+        # 从请求体中获取数组
+        data = request.get_json()
+        lyrics = data['lyrics']
+        tfidf_weight = data['tfidf_weight']
+        w2v_weight = data['w2v_weight']
+        lda_weight = data['lda_weight']
+        if not lyrics:
+            return jsonify({"error": "Missing 'lyrics' parameter"}), 400
+        
+        try:   
+            response = artist_manager.get_weighted_similar_artists_by_lyrics(lyrics,tfidf_weight,w2v_weight,lda_weight)
+            return jsonify(response), 200
+        except json.JSONDecodeError:
+            return jsonify({"error": "Invalid 'lyric' format. Expected a JSON array."}), 400
+    except Exception as e:
+        print(f"Error: {str(e)}")  # Print detailed error information
+        return jsonify({"error": str(e)}), 500
+    
 
 if __name__ == '__main__':
 # gunicorn -w 4 -b 0.0.0.0:5002 app:app

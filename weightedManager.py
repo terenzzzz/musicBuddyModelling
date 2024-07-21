@@ -72,9 +72,9 @@ class weightedManager:
             self.lda_similarity_matrix = self.rebuild_similarity_matrix(lda_similarity_path)  
         else:
             print("Files required did not achieve.")
-            self.process_and_save_tfidf(weighted_manager.tfidf_matrix)
-            self.process_and_save_w2v(weighted_manager.w2v_matrix)
-            self.process_and_save_lda(weighted_manager.lda_matrix)
+            self.process_and_save_tfidf(self.tfidf_matrix)
+            self.process_and_save_w2v(self.w2v_matrix)
+            self.process_and_save_lda(self.lda_matrix)
             
         print("Similarity_matrix Loadded Successful")
     
