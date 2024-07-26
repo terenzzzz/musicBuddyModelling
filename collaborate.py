@@ -81,9 +81,9 @@ class collaborateManager:
                 if not tracks_documents:
                     print("No documents found in MongoDB collection.")
                 else:
-                    print(f"Found {len(self.tracks_documents)} users documents in MongoDB collection.")
+                    print(f"Found {len(tracks_documents)} users documents in MongoDB collection.")
                 
-                self.track_map = OrderedDict((str(doc['_id']), idx) for idx, doc in enumerate(self.tracks_documents))
+                self.track_map = OrderedDict((str(doc['_id']), idx) for idx, doc in enumerate(tracks_documents))
                 
                 with open(os.path.join(self.output_dir, 'track_map.json'), 'w') as f:
                     json.dump(list(self.track_map.items()), f)
@@ -209,13 +209,54 @@ class collaborateManager:
         return similar_items_with_ids
     
     def get_similar_users(self, user_id, n=20):
-        user_index = self.get_index_by_user_id(self.user_map, user_id)
+        user_index = self.get_index_by_id(self.user_map, user_id)
         user_similarities = self.user_similar_matrix[user_index]
         print(user_similarities)
         return self.get_top_n_similar(user_similarities, item_type='user', n=n)
+    
+    def get_similar_users_tracks(self, user_id, n=20, top_tracks=10):
+        # 获取相似用户
+        similar_users = self.get_similar_users(user_id, n)
+        if not similar_users:
+            return []
+
+        # 获取输入用户的索引
+        user_index = self.get_index_by_id(self.user_map, user_id)
+
+        # 初始化一个字典来存储每个曲目的加权评分
+        weighted_ratings = {}
+
+        # 对于每个相似用户
+        for similar_user in similar_users:
+            similar_user_id = similar_user['user']['$oid']
+            similarity = similar_user['similarity']
+            similar_user_index = self.get_index_by_id(self.user_map, similar_user_id)
+
+            # 获取该用户的所有评分
+            user_ratings = self.user_track_matrix[similar_user_index]
+            
+
+            # 对于该用户评分过的每个曲目
+            for track_index, rating in enumerate(user_ratings):
+                if rating >= 3:  # 只考虑用户实际评分过3分的曲目
+                    track_id = self.get_id_by_index(self.track_map,track_index)
+                    print(track_id)
+                    # 如果输入用户没有评价过这个曲目
+                    if self.user_track_matrix[user_index][track_index] == 0:
+                        if track_id not in weighted_ratings:
+                            weighted_ratings[track_id] = 0
+                        # 加权评分：评分 * 用户相似度
+                        weighted_ratings[track_id] += rating * similarity
+
+        # 对加权评分进行排序
+        sorted_tracks = sorted(weighted_ratings.items(), key=lambda x: x[1], reverse=True)
+        print(f"sorted_tracks: {sorted_tracks}")
+
+        # 返回评分最高的 top_tracks 个曲目
+        return [{'track': {'$oid': track_id}, 'score': score} for track_id, score in sorted_tracks[:top_tracks]]
 
     def get_similar_tracks(self, track_id, n=20):
-        track_index = self.get_index_by_user_id(self.track_map, track_id)
+        track_index = self.get_index_by_id(self.track_map, track_id)
         track_similarities = self.track_similar_matrix[track_index]
         return self.get_top_n_similar(track_similarities, item_type='track', n=n)
 
@@ -225,10 +266,10 @@ class collaborateManager:
 
     # Helper method
 
-    def get_index_by_user_id(self, mapping, user_id):
+    def get_index_by_id(self, mapping, user_id):
         return mapping.get(user_id)
 
-    def get_user_id_by_index(self, mapping, index):
+    def get_id_by_index(self, mapping, index):
         return list(mapping.keys())[index] if 0 <= index < len(mapping) else None
     
     def get_rating(self, user_id, track_id):
@@ -271,35 +312,38 @@ if __name__ == "__main__":
     collaborate_manager.load_tracks_map(track_map_path)
     collaborate_manager.load_ratings_documents(ratings_documents_path)
     
-    user_id = collaborate_manager.get_user_id_by_index(collaborate_manager.user_map,0)
-    user_index = collaborate_manager.get_index_by_user_id(collaborate_manager.user_map, '6600f6201d59bf62169dca5e')
+    user_id = collaborate_manager.get_index_by_id(collaborate_manager.user_map,0)
+    user_index = collaborate_manager.get_index_by_id(collaborate_manager.user_map, '6600f6201d59bf62169dca5e')
     print(f"user_id for index 0: {user_id}")
-    print(f"user_index for user_id <6600f6201d59bf62169dca5e> : {user_index}")
+    print(f"user_index for user_id <6600f6201d59bf62169dca5e> : {user_index} \n")
     
     
     user_track_matrix = collaborate_manager.construct_user_track_matrix()
-    print(f"user_track_matrix shape: {user_track_matrix.shape}")
+    print(f"user_track_matrix shape: {user_track_matrix.shape} \n")
 
     
     user_similarity_matrix = collaborate_manager.construct_user_similar_matrix()
-    print(f"user_similarity_matrix shape: {user_similarity_matrix.shape}")
+    print(f"user_similarity_matrix shape: {user_similarity_matrix.shape} \n")
 
     
     track_similarity_matrix = collaborate_manager.construct_track_similar_matrix()
-    print(f"track_similarity_matrix shape: {track_similarity_matrix.shape}")
+    print(f"track_similarity_matrix shape: {track_similarity_matrix.shape} \n")
     
 
     
     # 获取与特定用户相似的用户
     user_id = '6600f6201d59bf62169dca5e'
     similar_users = collaborate_manager.get_similar_users(user_id, n=10)
-    print(f"similar_users: {similar_users}")
+    print(f"similar_users: {similar_users} \n")
     
     # 获取与特定曲目相似的曲目
     track_id = '6678efc77b1dbd108405080e'
     similar_tracks = collaborate_manager.get_similar_tracks(track_id, n=10)
-    print(f"similar_tracks: {similar_tracks}")
+    print(f"similar_tracks: {similar_tracks} \n")
 
+    # 获取用户协同过滤推荐
+    recommended_tracks = collaborate_manager.get_similar_users_tracks(user_id, n=20, top_tracks=10)
+    print(f"recommended_tracks by similar user`: {recommended_tracks}")
 
     
     

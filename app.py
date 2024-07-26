@@ -352,6 +352,25 @@ def getCollaborateSimilarUsers():
         print(f"Error: {str(e)}")  # Print detailed error information
         return jsonify({"error": str(e)}), 500
     
+@app.route('/getCollaborateSimilarUsersTracks', methods=['POST'])
+def getCollaborateSimilarUsersTracks():
+    try:
+        # 从请求体中获取数组
+        data = request.get_json()
+        user = data['user']
+
+        if not user:
+            return jsonify({"error": "Missing 'user' parameter"}), 400
+        
+        try:   
+            response = collaborate_manager.get_similar_users_tracks(user)
+            return jsonify(response), 200
+        except json.JSONDecodeError:
+            return jsonify({"error": "Invalid 'user' format. Expected a JSON array."}), 400
+    except Exception as e:
+        print(f"Error: {str(e)}")  # Print detailed error information
+        return jsonify({"error": str(e)}), 500
+    
 @app.route('/getCollaborateSimilarTracks', methods=['POST'])
 def getCollaborateSimilarTracks():
     try:
