@@ -7,6 +7,7 @@ from artist import ArtistManager
 from pymongo import MongoClient
 import json
 from weightedManager import weightedManager
+from collaborate import collaborateManager
 
 app = Flask(__name__)
 CORS(app)  # 这将为所有路由启用 CORS
@@ -43,6 +44,16 @@ artist_manager = ArtistManager(tfidf_manager,w2v_manager,lda_manager)
 artist_manager.load_tfidf_matrix()
 artist_manager.load_w2v_matrix()
 artist_manager.load_lda_matrix()
+
+collaborate_manager = collaborateManager()
+collaborate_manager.load_user_map('collaborate/user_map.json')
+collaborate_manager.load_tracks_map('collaborate/track_map.json')
+collaborate_manager.load_ratings_documents('collaborate/ratings_documents.json')
+collaborate_manager.construct_user_track_matrix()
+collaborate_manager.construct_user_similar_matrix()
+collaborate_manager.construct_track_similar_matrix()
+
+    
 
 
 @app.route('/getLyricTopWordsByLyric', methods=['POST'])
@@ -168,7 +179,6 @@ def getWeightedRecommendByLyrics():
     except Exception as e:
         print(f"Error: {str(e)}")  # Print detailed error information
         return jsonify({"error": str(e)}), 500
-
 
 @app.route('/getTfidfRecommendArtistsByArtist', methods=['POST'])
 def getTfidfRecommendArtistsByArtist():
@@ -323,6 +333,44 @@ def getWeightedRecommendArtistsByLyrics():
         print(f"Error: {str(e)}")  # Print detailed error information
         return jsonify({"error": str(e)}), 500
     
+@app.route('/getCollaborateSimilarUsers', methods=['POST'])
+def getCollaborateSimilarUsers():
+    try:
+        # 从请求体中获取数组
+        data = request.get_json()
+        user = data['user']
+
+        if not user:
+            return jsonify({"error": "Missing 'user' parameter"}), 400
+        
+        try:   
+            response = collaborate_manager.get_similar_users(user)
+            return jsonify(response), 200
+        except json.JSONDecodeError:
+            return jsonify({"error": "Invalid 'user' format. Expected a JSON array."}), 400
+    except Exception as e:
+        print(f"Error: {str(e)}")  # Print detailed error information
+        return jsonify({"error": str(e)}), 500
+    
+@app.route('/getCollaborateSimilarTracks', methods=['POST'])
+def getCollaborateSimilarTracks():
+    try:
+        # 从请求体中获取数组
+        data = request.get_json()
+        track = data['track']
+
+        if not track:
+            return jsonify({"error": "Missing 'track' parameter"}), 400
+        
+        try:   
+            response = collaborate_manager.get_similar_tracks(track)
+            return jsonify(response), 200
+        except json.JSONDecodeError:
+            return jsonify({"error": "Invalid 'user' format. Expected a JSON array."}), 400
+    except Exception as e:
+        print(f"Error: {str(e)}")  # Print detailed error information
+        return jsonify({"error": str(e)}), 500
+
 
 if __name__ == '__main__':
 # gunicorn -w 4 -b 0.0.0.0:5002 app:app
