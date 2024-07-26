@@ -264,6 +264,7 @@ class collaborateManager:
 
 
 
+
     # Helper method
 
     def get_index_by_id(self, mapping, user_id):

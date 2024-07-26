@@ -46,12 +46,7 @@ artist_manager.load_w2v_matrix()
 artist_manager.load_lda_matrix()
 
 collaborate_manager = collaborateManager()
-collaborate_manager.load_user_map('collaborate/user_map.json')
-collaborate_manager.load_tracks_map('collaborate/track_map.json')
-collaborate_manager.load_ratings_documents('collaborate/ratings_documents.json')
-collaborate_manager.construct_user_track_matrix()
-collaborate_manager.construct_user_similar_matrix()
-collaborate_manager.construct_track_similar_matrix()
+
 
     
 
@@ -336,6 +331,7 @@ def getWeightedRecommendArtistsByLyrics():
 @app.route('/getCollaborateSimilarUsers', methods=['POST'])
 def getCollaborateSimilarUsers():
     try:
+        
         # 从请求体中获取数组
         data = request.get_json()
         user = data['user']
@@ -355,6 +351,12 @@ def getCollaborateSimilarUsers():
 @app.route('/getCollaborateSimilarUsersTracks', methods=['POST'])
 def getCollaborateSimilarUsersTracks():
     try:
+        collaborate_manager = collaborateManager()
+        collaborate_manager.load_user_map('')
+        collaborate_manager.load_tracks_map('')
+        collaborate_manager.load_ratings_documents('')
+        collaborate_manager.construct_user_track_matrix()
+        collaborate_manager.construct_user_similar_matrix()
         # 从请求体中获取数组
         data = request.get_json()
         user = data['user']
@@ -374,6 +376,12 @@ def getCollaborateSimilarUsersTracks():
 @app.route('/getCollaborateSimilarTracks', methods=['POST'])
 def getCollaborateSimilarTracks():
     try:
+        collaborate_manager = collaborateManager()
+        collaborate_manager.load_user_map('')
+        collaborate_manager.load_tracks_map('')
+        collaborate_manager.load_ratings_documents('')
+        collaborate_manager.construct_user_track_matrix()
+        collaborate_manager.construct_track_similar_matrix()
         # 从请求体中获取数组
         data = request.get_json()
         track = data['track']
