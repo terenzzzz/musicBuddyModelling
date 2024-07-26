@@ -268,8 +268,8 @@ if __name__ == "__main__":
         # if doc_vector is not None:
         #     print(f"Vector representation for document ID {doc_id}: {doc_vector}")
         
-        # words_to_find = ['love', 'university', 'cat', 'car', 'night', 'apple', 'bed']
-        # for word in words_to_find:
-        #     similar_words = w2v_manager.find_most_similar_words(word)
-        #     print(f"Words most similar to '{word}': {similar_words}")
-        #     print()
+        words_to_find = ['love', 'university', 'cat', 'car', 'night', 'apple', 'bed']
+        for word in words_to_find:
+            similar_words = w2v_manager.find_most_similar_words(word)
+            print(f"Words most similar to '{word}': {similar_words}")
+            print()

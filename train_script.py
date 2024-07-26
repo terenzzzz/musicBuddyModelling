@@ -1,13 +1,10 @@
 # -*- coding: utf-8 -*-
 from preprocessor import Preprocessor
-from flask import Flask, request, jsonify
-from flask_cors import CORS
 from lda import LDAModelManager
 from word2vec import Word2VecManager
 from tfidf import TFIDFManager
 from artist import ArtistManager
 from pymongo import MongoClient
-import json
 from weightedManager import weightedManager
 import os
 

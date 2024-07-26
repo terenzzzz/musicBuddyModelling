@@ -22,9 +22,9 @@ if __name__ == "__main__":
         "word2vec/",
         "tfidf/",
         "weighted_similarity.npz",
-        "lda_similarity.npz",
-        "w2v_similarity.npz",
-        "tfidf_similarity.npz"
+        "lda_similarity_matrix.npz",
+        "w2v_similarity_matrix.npz",
+        "tfidf_similarity_matrix.npz"
     ]
     
     for path in paths_to_delete:
