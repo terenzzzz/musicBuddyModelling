@@ -181,13 +181,18 @@ class collaborateManager:
         return self.track_similar_matrix
     
 
-    def get_top_n_similar(self, similarities, item_type='user', n=20):
+    def get_top_n_similar(self, similarities, exclude_index, item_type='user', n=20):
         # 创建一个包含索引和相似度的列表
         similar_items = list(enumerate(similarities))
         
-        # 按相似度降序排序，但排除索引为0的项（自身）
+        # 排序相似度降序
         similar_items.sort(key=lambda x: x[1], reverse=True)
-        similar_items = [item for item in similar_items if item[0] != 0][:n]
+        
+        # 排除自身（输入用户的索引）
+        similar_items = [item for item in similar_items if item[0] != exclude_index]
+        
+        # 获取前n个相似项
+        similar_items = similar_items[:n]
         
         # 根据item_type选择正确的映射
         if item_type == 'user':
@@ -211,8 +216,8 @@ class collaborateManager:
     def get_similar_users(self, user_id, n=20):
         user_index = self.get_index_by_id(self.user_map, user_id)
         user_similarities = self.user_similar_matrix[user_index]
-        print(user_similarities)
-        return self.get_top_n_similar(user_similarities, item_type='user', n=n)
+        print(f"user_similarities: {user_similarities}")
+        return self.get_top_n_similar(user_similarities, user_index, item_type='user', n=n)
     
     def get_similar_users_tracks(self, user_id, n=20, top_tracks=10):
         # 获取相似用户
@@ -258,7 +263,7 @@ class collaborateManager:
     def get_similar_tracks(self, track_id, n=20):
         track_index = self.get_index_by_id(self.track_map, track_id)
         track_similarities = self.track_similar_matrix[track_index]
-        return self.get_top_n_similar(track_similarities, item_type='track', n=n)
+        return self.get_top_n_similar(track_similarities,track_index, item_type='track', n=n)
 
 
 
@@ -313,7 +318,7 @@ if __name__ == "__main__":
     collaborate_manager.load_tracks_map(track_map_path)
     collaborate_manager.load_ratings_documents(ratings_documents_path)
     
-    user_id = collaborate_manager.get_index_by_id(collaborate_manager.user_map,0)
+    user_id = collaborate_manager.get_id_by_index(collaborate_manager.user_map,0)
     user_index = collaborate_manager.get_index_by_id(collaborate_manager.user_map, '6600f6201d59bf62169dca5e')
     print(f"user_id for index 0: {user_id}")
     print(f"user_index for user_id <6600f6201d59bf62169dca5e> : {user_index} \n")
@@ -333,7 +338,7 @@ if __name__ == "__main__":
 
     
     # 获取与特定用户相似的用户
-    user_id = '6600f6201d59bf62169dca5e'
+    user_id = '6658ccd24580ba288add89fb'
     similar_users = collaborate_manager.get_similar_users(user_id, n=10)
     print(f"similar_users: {similar_users} \n")
     
