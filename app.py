@@ -21,7 +21,7 @@ tracks_collection = db['tracks']
 
 # Load tfidf model
 tfidf_manager = TFIDFManager()
-tfidf_manager.load_from_file("tfidf")
+tfidf_manager.load_from_file()
 
 # # Load word2vec model
 w2v_manager = Word2VecManager()
@@ -38,7 +38,7 @@ default_w2v_weight = 0.33
 default_lda_weight = 0.34
 weighted_manager = weightedManager(tfidf_manager,w2v_manager,lda_manager, 
                                    default_tfidf_weight, default_w2v_weight, 
-                                   default_lda_weight,"tfidf/doc_id_to_index_map.json")
+                                   default_lda_weight)
 
 artist_manager = ArtistManager(tfidf_manager,w2v_manager,lda_manager)
 artist_manager.load_tfidf_matrix()
@@ -46,9 +46,6 @@ artist_manager.load_w2v_matrix()
 artist_manager.load_lda_matrix()
 
 collaborate_manager = collaborateManager()
-
-
-    
 
 
 @app.route('/getLyricTopWordsByLyric', methods=['POST'])

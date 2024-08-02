@@ -57,7 +57,7 @@ if __name__ == "__main__":
     # Load Lda model
     print("Handling LDA model......")
     lda_manager = LDAModelManager()
-    num_topics = 20
+    num_topics = 15
     lda_input_dir = 'lda'
 
     # 检查是否存在已保存的模型文件

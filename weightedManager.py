@@ -16,10 +16,9 @@ from tfidf import TFIDFManager
 class weightedManager:
     
     def __init__(self,tfidf_manager,w2v_manager,lda_manager,
-                 tfidf_weight, w2v_weight, lda_weight, 
-                 doc_id_to_index_map_path):
+                 tfidf_weight, w2v_weight, lda_weight):
         self.preprocessor = Preprocessor() # 预处理器
-        self.doc_id_to_index_map = None # 文档id和索引映射, 用来通过id查找索引
+        self.doc_id_to_index_map = tfidf_manager.doc_id_to_index_map # 文档id和索引映射, 用来通过id查找索引
         
         # 三种模型
         self.tfidf_manager = tfidf_manager
@@ -45,7 +44,7 @@ class weightedManager:
         
         # 初始化
         self.validate_weights(tfidf_weight, w2v_weight, lda_weight)
-        self.load_doc_id_to_index_map(doc_id_to_index_map_path) #从文件中加载文档id与索引的映射
+        # self.load_doc_id_to_index_map(doc_id_to_index_map_path) #从文件中加载文档id与索引的映射
         # self.init_manager(tfidf_weight, w2v_weight, lda_weight)
         
 
@@ -394,8 +393,7 @@ if __name__ == "__main__":
     
     
     weighted_manager = weightedManager(tfidf_manager,w2v_manager,lda_manager, 
-                                       tfidf_weight, w2v_weight, lda_weight, 
-                                       "tfidf/doc_id_to_index_map.json")
+                                       tfidf_weight, w2v_weight, lda_weight)
 
     # Default Use to get similar documents by lyrics.
     lyric="If he's cheatin', I'm doin' him worse (Like) No Uno, I hit the reverse (Grrah) I ain't trippin', the grip in my purse (Grrah) I don't care 'cause he did it first (Like) If he's cheatin', I'm doin' him worse (Damn) I ain't trippin', I— (I ain't trippin', I—) I ain't trippin', the grip in my purse (Like) I don't care 'cause he did it first"

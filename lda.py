@@ -57,7 +57,7 @@ class LDAModelManager:
             lyrics = [doc.get('lyric', '') for doc in self.tracks_documents if isinstance(doc.get('lyric', None), str)]
             self.processed_lyrics = self.preprocessor.preprocess_lyrics(lyrics)
 
-    def load_mongo_and_train(self, num_topics=10, output_dir='lda'):
+    def load_mongo_and_train(self, num_topics=15, output_dir='lda'):
         self.load_preprocessed_data()
         print('Preprocessed data loaded')
 
@@ -79,7 +79,7 @@ class LDAModelManager:
             num_topics=num_topics, 
             id2word=self.dictionary, 
             alpha='auto', eta='auto', 
-            passes=10
+            passes=100
         )
         
         self.doc_topic_matrix = self.get_document_topic_matrix(num_topics)
@@ -136,7 +136,7 @@ class LDAModelManager:
         average_vector = self.compute_mean_vector(input_lyrics_list)
     
         # 将平均向量转换为 (主题编号, 概率) 的格式
-        num_topics = len(average_vector)
+        # num_topics = len(average_vector)
         topic_distribution = [(i, float(prob)) for i, prob in enumerate(average_vector)]
     
         # 按照主题概率排序
@@ -316,10 +316,38 @@ class LDAModelManager:
         average_vector = np.mean(input_vectors, axis=0)
         
         return average_vector
+    
+    def save_topics_to_json(self, output_dir='lda'):
+        # 获取主题信息
+        topics = self.lda_model.print_topics(num_topics=num_topics, num_words=10)
+        
+        # 解析主题信息
+        topics_list = []
+        for topic_id, topic in topics:
+            # topic 格式为 '0.077"hear" + 0.066"head" + ...'
+            words = topic.split(' + ')
+            topic_words = []
+            for word in words:
+                weight, term = word.split('*')
+                weight = float(weight)
+                term = term.replace('"', '')
+                topic_words.append({'word': term, 'weight': weight})
+            
+            # 添加主题到列表
+            topic_dict = {
+                'topic_id': topic_id,
+                'name': "",
+                'words': topic_words
+            }
+            topics_list.append(topic_dict)
+        
+        # 将结果保存为JSON文件
+        with open(os.path.join(output_dir, 'topics.json'), 'w', encoding='utf-8') as f:
+            json.dump(topics_list, f, ensure_ascii=False, indent=4)
 
 if __name__ == "__main__":
     lda_manager = LDAModelManager()
-    num_topics = 10
+    num_topics = 15
     input_dir = 'lda'
 
     # 检查是否存在已保存的模型文件
@@ -347,8 +375,8 @@ if __name__ == "__main__":
         
         # lda_manager.get_song_topics('65ffc183c1ab936c978f29a8')
         
-        print("\n1. Top 5 words for each topic:")
-        pprint(lda_manager.lda_model.print_topics(num_topics=num_topics, num_words=5))
+        print("\n1. Top 10 words for each topic:")
+        pprint(lda_manager.lda_model.print_topics(num_topics=num_topics, num_words=10))
 
         # print("\n2. Calculate topic coherence score:")
         # lda_manager.get_coherence()
@@ -362,6 +390,9 @@ if __name__ == "__main__":
         
         # print("\n5. Generate document-topic matrix:")
         # lda_manager.get_document_topic_matrix(num_topics)
+        
+    # 保存模型
+    lda_manager.save_topics_to_json()
 
     # 如果您想评估不同主题数量的模型性能,可以取消注释下面的行
     # lda_manager.evaluate_model()
