@@ -64,7 +64,6 @@ class Word2VecManager:
         self.collection_name = collection_name
         self.w2v_model = None
         self.song_vectors = None
-        self.top_similarities_json = None
         self.doc_id_to_index_map = None
         self.tracks_documents = None
         self.preprocessor = Preprocessor()
@@ -138,48 +137,23 @@ class Word2VecManager:
         self.song_vectors = [self.get_song_vector(lyrics) for lyrics in tqdm(processed_lyrics, desc="Generating Song Vectors")]
         self.doc_id_to_index_map = {doc_id: idx for idx, doc_id in enumerate(doc_ids)}
         
-        w2v_similarity_matrix = cosine_similarity(self.song_vectors)
-        top_n_similarities = np.argsort(w2v_similarity_matrix, axis=1)[:, -N-1:-1]
-        
-        self.top_similarities_json = []
-        for i, doc in enumerate(tqdm(self.tracks_documents, desc="Preparing JSON for Top Similarities")):
-            top_similar_docs = [
-                {
-                    "track": {"$oid": str(self.tracks_documents[idx]['_id'])},
-                    "value": float(w2v_similarity_matrix[i, idx])
-                }
-                for idx in top_n_similarities[i]
-            ]
-            self.top_similarities_json.append({
-                "track": {"$oid": str(doc['_id'])},
-                "topsimilar": top_similar_docs
-            })
-        
-
-        
         with open(os.path.join(output_dir, 'doc_id_to_index_map.json'), 'w') as f:
             json.dump(self.doc_id_to_index_map, f, indent=2)
         
-        with open(os.path.join(output_dir, 'top_similarities.json'), 'w') as f:
-            json.dump(self.top_similarities_json, f, indent=2)
-
         np.save(os.path.join(output_dir, 'song_vectors.npy'), self.song_vectors)
         
-
+    def load_from_file(self, input_dir="word2vec"):
+        self.song_vectors = np.load(os.path.join(input_dir, 'song_vectors.npy'))
+        self.w2v_model = Word2Vec.load(os.path.join(input_dir, 'w2v_model.model'))
+        with open(os.path.join(input_dir, 'doc_id_to_index_map.json'), 'r') as f:
+            self.doc_id_to_index_map = json.load(f)
+        
     def get_song_vector(self, lyrics):
         vectors = [self.w2v_model.wv[word] for word in lyrics if word in self.w2v_model.wv]
         if vectors:
             return np.mean(vectors, axis=0)
         else:
             return np.zeros(self.w2v_model.vector_size)
-
-    def load_from_file(self, input_dir="word2vec"):
-        self.song_vectors = np.load(os.path.join(input_dir, 'song_vectors.npy'))
-        self.w2v_model = Word2Vec.load(os.path.join(input_dir, 'w2v_model.model'))
-        with open(os.path.join(input_dir, 'top_similarities.json'), 'r') as f:
-            self.top_similarities_json = json.load(f)
-        with open(os.path.join(input_dir, 'doc_id_to_index_map.json'), 'r') as f:
-            self.doc_id_to_index_map = json.load(f)
 
     def find_most_similar_words(self, word, topn=10):
         if self.w2v_model:
@@ -246,7 +220,9 @@ if __name__ == "__main__":
     w2v_manager = Word2VecManager()
     input_dir = 'word2vec'
 
-    if all(os.path.exists(os.path.join(input_dir, f)) for f in ['song_vectors.npy', 'w2v_model.model', 'top_similarities.json', 'doc_id_to_index_map.json']):
+    if all(os.path.exists(os.path.join(input_dir, f)) for f in ['song_vectors.npy', 
+                                                                'w2v_model.model', 
+                                                                'doc_id_to_index_map.json']):
         print("Loading word2Vec results from files...")
         w2v_manager.load_from_file(input_dir)
     else:

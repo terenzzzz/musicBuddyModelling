@@ -25,7 +25,7 @@ tfidf_manager.load_from_file()
 
 # # Load word2vec model
 w2v_manager = Word2VecManager()
-w2v_manager.load_from_file("word2vec")
+w2v_manager.load_from_file()
 
 # Load lda model
 lda_manager = LDAModelManager()
