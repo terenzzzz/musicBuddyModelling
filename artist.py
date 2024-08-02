@@ -8,7 +8,7 @@ from word2vec import Word2VecManager
 from tfidf import TFIDFManager
 
 class ArtistManager:
-    def __init__(self, tfidf_manager,w2v_manager,lda_manager,mongo_uri='mongodb://localhost:27017/', 
+    def __init__(self, tfidf_manager,w2v_manager,lda_manager,mongo_uri='mongodb+srv://terence592592:592592@musicbuddy.grxyfb1.mongodb.net/', 
                  db_name='MusicBuddyVue', tracks_collection_name='tracks', 
                  artists_collection_name= "artists", output_dir='artists', ):
         self.mongo_uri = mongo_uri

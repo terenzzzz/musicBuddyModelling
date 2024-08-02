@@ -13,7 +13,7 @@ app = Flask(__name__)
 CORS(app)  # 这将为所有路由启用 CORS
 
 
-client = MongoClient('mongodb://localhost:27017/')
+client = MongoClient('mongodb+srv://terence592592:592592@musicbuddy.grxyfb1.mongodb.net/')
 db = client['MusicBuddyVue']
 tracks_collection = db['tracks']
         

@@ -16,7 +16,7 @@ class JSONEncoder(json.JSONEncoder):
         return super(JSONEncoder, self).default(o)
 
 class collaborateManager:
-    def __init__(self, mongo_uri='mongodb://localhost:27017/', db_name='MusicBuddyVue', 
+    def __init__(self, mongo_uri='mongodb+srv://terence592592:592592@musicbuddy.grxyfb1.mongodb.net/', db_name='MusicBuddyVue', 
                  tracks_collection_name='tracks', 
                  users_collection_name= "users",
                  ratings_collection_name= "ratings",

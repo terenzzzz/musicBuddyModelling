@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 
 
 class LDAModelManager:
-    def __init__(self, mongo_uri='mongodb://localhost:27017/', db_name='MusicBuddyVue', collection_name='tracks'):
+    def __init__(self, mongo_uri='mongodb+srv://terence592592:592592@musicbuddy.grxyfb1.mongodb.net/', db_name='MusicBuddyVue', collection_name='tracks'):
         logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
         self.mongo_uri = mongo_uri
         self.db_name = db_name
