@@ -219,7 +219,7 @@ class collaborateManager:
         print(f"user_similarities: {user_similarities}")
         return self.get_top_n_similar(user_similarities, user_index, item_type='user', n=n)
     
-    def get_similar_users_tracks(self, user_id, n=20, top_tracks=10):
+    def get_similar_users_tracks(self, user_id, n=20):
         # 获取相似用户
         similar_users = self.get_similar_users(user_id, n)
         if not similar_users:
@@ -245,7 +245,6 @@ class collaborateManager:
             for track_index, rating in enumerate(user_ratings):
                 if rating >= 3:  # 只考虑用户实际评分过3分的曲目
                     track_id = self.get_id_by_index(self.track_map,track_index)
-                    print(track_id)
                     # 如果输入用户没有评价过这个曲目
                     if self.user_track_matrix[user_index][track_index] == 0:
                         if track_id not in weighted_ratings:
@@ -258,7 +257,7 @@ class collaborateManager:
         print(f"sorted_tracks: {sorted_tracks}")
 
         # 返回评分最高的 top_tracks 个曲目
-        return [{'track': {'$oid': track_id}, 'score': score} for track_id, score in sorted_tracks[:top_tracks]]
+        return [{'track': {'$oid': track_id}, 'score': score} for track_id, score in sorted_tracks[:n]]
 
     def get_similar_tracks(self, track_id, n=20):
         track_index = self.get_index_by_id(self.track_map, track_id)
@@ -348,7 +347,7 @@ if __name__ == "__main__":
     print(f"similar_tracks: {similar_tracks} \n")
 
     # 获取用户协同过滤推荐
-    recommended_tracks = collaborate_manager.get_similar_users_tracks(user_id, n=20, top_tracks=10)
+    recommended_tracks = collaborate_manager.get_similar_users_tracks(user_id, n=20)
     print(f"recommended_tracks by similar user`: {recommended_tracks}")
 
     

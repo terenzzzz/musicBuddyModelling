@@ -242,8 +242,6 @@ class TFIDFManager:
         
         return top_words_dict
 
-
-        return top_words_dict
     
     def get_similar_documents_for_lyrics(self, input_lyrics_list, top_n=20):
         # 确保输入是一个列表

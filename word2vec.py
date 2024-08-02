@@ -56,6 +56,7 @@ class EpochLogger:
         plt.savefig(os.path.join(output_dir, 'loss_plot.png'))
         plt.close()
 
+
 class Word2VecManager:
     def __init__(self, mongo_uri='mongodb://localhost:27017/', db_name='MusicBuddyVue', collection_name='tracks'):
         self.mongo_uri = mongo_uri
@@ -114,16 +115,16 @@ class Word2VecManager:
         epoch_logger = EpochLogger()
         
         self.w2v_model = Word2Vec(processed_lyrics, 
-                          vector_size=300, 
-                          window=10, 
-                          min_count=5, 
+                          vector_size=250, 
+                          window=8, 
+                          min_count=3, 
                           workers=multiprocessing.cpu_count(),
                           sg=1, 
                           hs=1,
-                          negative=8,
+                          negative=6,
                           alpha=0.025,
                           min_alpha=0.0001,
-                          epochs=200,
+                          epochs=100,
                           callbacks=[epoch_logger],
                           compute_loss=True)
         
@@ -268,8 +269,43 @@ if __name__ == "__main__":
         # if doc_vector is not None:
         #     print(f"Vector representation for document ID {doc_id}: {doc_vector}")
         
-        words_to_find = ['love', 'university', 'cat', 'car', 'night', 'apple', 'bed']
-        for word in words_to_find:
+            
+            
+        # Testing
+        words_to_check = ['love', 'car', 'ice', 'night']
+        for word in words_to_check:
             similar_words = w2v_manager.find_most_similar_words(word)
             print(f"Words most similar to '{word}': {similar_words}")
-            print()
+
+
+        analogies = [
+            ("fire", "hot", "ice", "cold"),
+            ("sparrow", "bird", "shark", "fish")
+        ]
+        
+        for a, b, c, expected in analogies:
+            predicted = w2v_manager.w2v_model.wv.most_similar(positive=[c, b], negative=[a], topn=1)
+            print(f"{a} : {b} :: {c} : {predicted[0][0]} (expected: {expected})")
+            
+        # from sklearn.manifold import TSNE
+
+        # # 获取前500个最常用的词
+        # vocab = list(w2v_manager.w2v_model.wv.index_to_key[:500])
+        # word_vectors = w2v_manager.w2v_model.wv[vocab]
+        
+        # # 使用t-SNE进行降维
+        # tsne = TSNE(n_components=2)
+        # word_vecs_2d = tsne.fit_transform(word_vectors)
+        
+        # # 绘制图形
+        # plt.figure(figsize=(15, 10))
+        # plt.scatter(word_vecs_2d[:, 0], word_vecs_2d[:, 1])
+        
+        # for i, word in enumerate(vocab):
+        #     plt.annotate(word, (word_vecs_2d[i, 0], word_vecs_2d[i, 1]))
+        
+        # plt.show()
+
+
+        
+        

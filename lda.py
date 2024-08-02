@@ -11,8 +11,6 @@ import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 import json
 import matplotlib.pyplot as plt
-from gensim import matutils
-import nltk
 
 
 class LDAModelManager:
@@ -59,7 +57,7 @@ class LDAModelManager:
             lyrics = [doc.get('lyric', '') for doc in self.tracks_documents if isinstance(doc.get('lyric', None), str)]
             self.processed_lyrics = self.preprocessor.preprocess_lyrics(lyrics)
 
-    def load_mongo_and_train(self, num_topics=50, output_dir='lda'):
+    def load_mongo_and_train(self, num_topics=10, output_dir='lda'):
         self.load_preprocessed_data()
         print('Preprocessed data loaded')
 
@@ -157,12 +155,18 @@ class LDAModelManager:
         return result
 
     def evaluate_model(self):
-        topic_nums = list(range(10, 101, 5))
+        topic_nums = list(range(5, 51, 5))
         coherence_scores = []
         perplexity_scores = []
         
         for num_topics in tqdm(topic_nums, desc="Evaluating LDA Models"):
-            lda_model = gensim.models.ldamodel.LdaModel(corpus=self.corpus, id2word=self.dictionary, num_topics=num_topics, random_state=42)
+            lda_model = gensim.models.ldamodel.LdaModel(
+                corpus=self.corpus, 
+                id2word=self.dictionary, 
+                num_topics=num_topics, 
+                random_state=42,
+                alpha='auto', eta='auto', 
+                passes=100)
             
             coherence_score = self.get_coherence(lda_model)
             coherence_scores.append(coherence_score)
@@ -315,7 +319,7 @@ class LDAModelManager:
 
 if __name__ == "__main__":
     lda_manager = LDAModelManager()
-    num_topics = 20
+    num_topics = 10
     input_dir = 'lda'
 
     # 检查是否存在已保存的模型文件
@@ -335,16 +339,16 @@ if __name__ == "__main__":
         lyric="If he's cheatin', I'm doin' him worse (Like) No Uno, I hit the reverse (Grrah) I ain't trippin', the grip in my purse (Grrah) I don't care 'cause he did it first (Like) If he's cheatin', I'm doin' him worse (Damn) I ain't trippin', I— (I ain't trippin', I—) I ain't trippin', the grip in my purse (Like) I don't care 'cause he did it first"
         lyric2="Honey, I'm a good man, but I'm a cheatin' man And I'll do all I can, to get a lady's love And I wanna do right, I don't wanna hurt nobody If I slip, well then I'm sorry, yes I am"
         
-        similar_documents = lda_manager.get_similar_documents_for_lyrics([lyric,lyric2])
-        print(similar_documents)
+        # similar_documents = lda_manager.get_similar_documents_for_lyrics([lyric,lyric2])
+        # print(similar_documents)
         
-        track_topic_by_lyric = lda_manager.get_topics_by_lyric([lyric,lyric2])
-        print(f"track_topic_by_lyric: {track_topic_by_lyric}")
+        # track_topic_by_lyric = lda_manager.get_topics_by_lyric([lyric,lyric2])
+        # print(f"track_topic_by_lyric: {track_topic_by_lyric}")
         
         # lda_manager.get_song_topics('65ffc183c1ab936c978f29a8')
         
-        # print("\n1. Top 5 words for each topic:")
-        # pprint(lda_manager.lda_model.print_topics(num_topics=num_topics, num_words=5))
+        print("\n1. Top 5 words for each topic:")
+        pprint(lda_manager.lda_model.print_topics(num_topics=num_topics, num_words=5))
 
         # print("\n2. Calculate topic coherence score:")
         # lda_manager.get_coherence()
