@@ -29,7 +29,7 @@ w2v_manager.load_from_file()
 
 # Load lda model
 lda_manager = LDAModelManager()
-lda_manager.load_from_file("lda")
+lda_manager.load_from_file()
 
 
 # # Load Weighted similarity
