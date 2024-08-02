@@ -28,6 +28,7 @@ class LDAModelManager:
         self.tracks_documents = None
         self.preprocessor = Preprocessor()
         self.processed_lyrics = None
+        self.num_topic = 15
         
     def load_preprocessed_data(self):
         client = MongoClient(self.mongo_uri)
@@ -57,7 +58,7 @@ class LDAModelManager:
             lyrics = [doc.get('lyric', '') for doc in self.tracks_documents if isinstance(doc.get('lyric', None), str)]
             self.processed_lyrics = self.preprocessor.preprocess_lyrics(lyrics)
 
-    def load_mongo_and_train(self, num_topics=15, output_dir='lda'):
+    def load_mongo_and_train(self, output_dir='lda'):
         self.load_preprocessed_data()
         print('Preprocessed data loaded')
 
@@ -76,13 +77,13 @@ class LDAModelManager:
         
         self.lda_model = gensim.models.ldamodel.LdaModel(
             corpus=self.corpus, 
-            num_topics=num_topics, 
+            num_topics=self.num_topic, 
             id2word=self.dictionary, 
             alpha='auto', eta='auto', 
-            passes=1
+            passes=100
         )
         
-        self.doc_topic_matrix = self.get_document_topic_matrix(num_topics)
+        self.doc_topic_matrix = self.get_document_topic_matrix()
     
         
         os.makedirs(output_dir, exist_ok=True)
@@ -156,6 +157,7 @@ class LDAModelManager:
             self.dictionary = corpora.Dictionary.load(os.path.join(input_dir, 'dictionary.gensim'))
             self.corpus = corpora.MmCorpus(os.path.join(input_dir, 'corpus.mm'))
             self.lda_model = gensim.models.ldamodel.LdaModel.load(os.path.join(input_dir, 'lda_model.gensim'))
+            
             # 加载所有文档的主题分布矩阵
             self.doc_topic_matrix = np.load('lda/lda_matrix.npy')
             
@@ -182,8 +184,8 @@ class LDAModelManager:
         return perplexity
 
 
-    def get_document_topic_matrix(self, num_topics):
-        doc_topic_matrix = np.zeros((len(self.corpus), num_topics))
+    def get_document_topic_matrix(self):
+        doc_topic_matrix = np.zeros((len(self.corpus), self.num_topic))
         for i, doc_bow in enumerate(self.corpus):
             doc_topics = self.lda_model.get_document_topics(doc_bow, minimum_probability=0)
             for topic, prob in doc_topics:
@@ -194,31 +196,6 @@ class LDAModelManager:
         return doc_topic_matrix
     
     
-    def get_topics_by_lyric(self, input_lyrics_list):
-        if not isinstance(input_lyrics_list, list):
-            input_lyrics_list = [input_lyrics_list]
-    
-        # 获取平均向量的主题分布
-        average_vector = self.compute_mean_vector(input_lyrics_list)
-    
-        # 将平均向量转换为 (主题编号, 概率) 的格式
-        # num_topics = len(average_vector)
-        topic_distribution = [(i, float(prob)) for i, prob in enumerate(average_vector)]
-    
-        # 按照主题概率排序
-        sorted_topics = sorted(topic_distribution, key=lambda x: x[1], reverse=True)
-    
-        # 返回主题分布和主题词
-        result = []
-        for topic_id, prob in sorted_topics:
-            topic_words = self.lda_model.show_topic(topic_id, topn=10)
-            result.append({
-                'topic_id': int(topic_id),
-                'probability': float(prob),
-                'top_words': [word for word, _ in topic_words]
-            })
-    
-        return result
 
 
     
@@ -252,6 +229,7 @@ class LDAModelManager:
     def compute_mean_vector(self,lyrics):
         # 预处理输入的歌词列表
         processed_inputs = self.preprocessor.preprocess_lyrics(lyrics)
+
     
         # 将预处理后的歌词转换为LDA向量
         input_vectors = []
@@ -266,9 +244,34 @@ class LDAModelManager:
         
         return average_vector
     
+    def get_topics_by_lyric(self, input_lyrics_list):
+        if not isinstance(input_lyrics_list, list):
+            input_lyrics_list = [input_lyrics_list]
+    
+        # 获取平均向量的主题分布
+        average_vector = self.compute_mean_vector(input_lyrics_list)
+    
+        # 计算每个主题的概率
+        topic_distribution = [(i, float(prob)) for i, prob in enumerate(average_vector)]
+    
+        # 按照主题概率排序
+        sorted_topics = sorted(topic_distribution, key=lambda x: x[1], reverse=True)
+    
+        # 返回主题分布和主题词
+        result = []
+        for topic_id, prob in sorted_topics:
+            topic_words = self.lda_model.show_topic(topic_id, topn=10) # 返回单个主题的词与权重列表
+            result.append({
+                'topic_id': int(topic_id),
+                'probability': float(prob),
+                'top_words': [word for word, _ in topic_words]
+            })
+    
+        return result
+    
     def save_topics_to_json(self, output_dir='lda'):
         # 获取主题信息
-        topics = self.lda_model.print_topics(num_topics=num_topics, num_words=10)
+        topics = self.lda_model.print_topics(num_topics=self.num_topic, num_words=10) # 返回多个主题的简要描述
         
         # 解析主题信息
         topics_list = []
@@ -295,6 +298,7 @@ class LDAModelManager:
             json.dump(topics_list, f, ensure_ascii=False, indent=4)
 
 if __name__ == "__main__":
+    
     lda_manager = LDAModelManager()
     num_topics = 15
     input_dir = 'lda'
@@ -309,10 +313,37 @@ if __name__ == "__main__":
             print("LDA model loaded successfully.")
         else:
             print("Failed to load LDA model. Training a new one...")
-            lda_manager.load_mongo_and_train(num_topics=num_topics)
+            lda_manager.load_mongo_and_train()
     else:
         print("Loading data from MongoDB and training LDA model...")
-        lda_manager.load_mongo_and_train(num_topics=num_topics)
+        lda_manager.load_mongo_and_train()
+
+    if lda_manager.lda_model is not None:
+
+        lyric="If he's cheatin', I'm doin' him worse (Like) No Uno, I hit the reverse (Grrah) I ain't trippin', the grip in my purse (Grrah) I don't care 'cause he did it first (Like) If he's cheatin', I'm doin' him worse (Damn) I ain't trippin', I— (I ain't trippin', I—) I ain't trippin', the grip in my purse (Like) I don't care 'cause he did it first"
+        lyric2="Honey, I'm a good man, but I'm a cheatin' man And I'll do all I can, to get a lady's love And I wanna do right, I don't wanna hurt nobody If I slip, well then I'm sorry, yes I am"
+        
+        # similar_documents = lda_manager.get_similar_documents_for_lyrics([lyric,lyric2])
+        # print(similar_documents)
+        
+        # track_topic_by_lyric = lda_manager.get_topics_by_lyric([lyric,lyric2])
+        # print(f"track_topic_by_lyric: {track_topic_by_lyric}")
+    lda_manager = LDAModelManager()
+    input_dir = 'lda'
+    # 检查是否存在已保存的模型文件
+    if all(os.path.exists(os.path.join(input_dir, f)) for f in ['dictionary.gensim', 
+                                                                'corpus.mm', 
+                                                                'lda_model.gensim', 
+                                                                'texts.txt']):
+        print("Loading LDA results from files...")
+        if lda_manager.load_from_file(input_dir):
+            print("LDA model loaded successfully.")
+        else:
+            print("Failed to load LDA model. Training a new one...")
+            lda_manager.load_mongo_and_train()
+    else:
+        print("Loading data from MongoDB and training LDA model...")
+        lda_manager.load_mongo_and_train()
 
     if lda_manager.lda_model is not None:
 
@@ -325,10 +356,11 @@ if __name__ == "__main__":
         track_topic_by_lyric = lda_manager.get_topics_by_lyric([lyric,lyric2])
         print(f"track_topic_by_lyric: {track_topic_by_lyric}")
         
+    
 
         
-        # print("\n1. Top 10 words for each topic:")
-        # pprint(lda_manager.lda_model.print_topics(num_topics=num_topics, num_words=10))
+        print("\n1. Top 10 words for each topic:")
+        pprint(lda_manager.lda_model.print_topics(num_topics=num_topics, num_words=10))
 
         # print("\n2. Calculate topic coherence score:")
         # lda_manager.get_coherence()

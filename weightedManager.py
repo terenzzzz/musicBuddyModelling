@@ -25,11 +25,6 @@ class weightedManager:
         self.w2v_manager = w2v_manager
         self.lda_manager = lda_manager
         
-        # 三种模型的向量矩阵
-        self.tfidf_matrix = tfidf_manager.tfidf_matrix
-        self.w2v_matrix = w2v_manager.song_vectors
-        self.lda_matrix = lda_manager.doc_topic_matrix
-        
         # 相似度矩阵
         self.tfidf_similarity_matrix = None
         self.w2v_similarity_matrix = None
@@ -71,9 +66,9 @@ class weightedManager:
             self.lda_similarity_matrix = self.rebuild_similarity_matrix(lda_similarity_path)  
         else:
             print("Files required did not achieve.")
-            self.process_and_save_tfidf(self.tfidf_matrix)
-            self.process_and_save_w2v(self.w2v_matrix)
-            self.process_and_save_lda(self.lda_matrix)
+            self.process_and_save_tfidf(self.tfidf_manager.tfidf_matrix)
+            self.process_and_save_w2v(self.w2v_manager.song_vectors)
+            self.process_and_save_lda(self.lda_manager.doc_topic_matrix)
             
         print("Similarity_matrix Loadded Successful")
     
@@ -346,9 +341,9 @@ class weightedManager:
         lda_avg_vector = lda_avg_vector.reshape(1, -1)
         
         # 分别计算每种模型的相似度
-        tfidf_similarities = cosine_similarity(tfidf_avg_vector, self.tfidf_matrix)[0]
-        w2v_similarities = cosine_similarity(w2v_avg_vector, self.w2v_matrix)[0]
-        lda_similarities = cosine_similarity(lda_avg_vector, self.lda_matrix)[0]
+        tfidf_similarities = cosine_similarity(tfidf_avg_vector, self.tfidf_manager.tfidf_matrix)[0]
+        w2v_similarities = cosine_similarity(w2v_avg_vector, self.w2v_manager.song_vectors)[0]
+        lda_similarities = cosine_similarity(lda_avg_vector, self.lda_manager.doc_topic_matrix)[0]
     
         # 对相似度进行加权
         weighted_similarities = (
@@ -403,19 +398,18 @@ if __name__ == "__main__":
     print(similar_documents)
     
     # To Generate Similarity matrix
-    tfidf_similarity_path = "tfidf_similarity_matrix.npz"
-    w2v_similarity_path = "w2v_similarity_matrix.npz"
-    lda_similarity_path = "lda_similarity_matrix.npz"
-    weighted_similarity_path = "weighted_similarity.npz"
+    # tfidf_similarity_path = "tfidf_similarity_matrix.npz"
+    # w2v_similarity_path = "w2v_similarity_matrix.npz"
+    # lda_similarity_path = "lda_similarity_matrix.npz"
+    # weighted_similarity_path = "weighted_similarity.npz"
     
     
+    # weighted_manager.load_similarity_matrix(tfidf_similarity_path, w2v_similarity_path, lda_similarity_path)
+    # weighted_manager.load_weighted_similarity_matrix(weighted_similarity_path)
     
-    weighted_manager.load_similarity_matrix(tfidf_similarity_path, w2v_similarity_path, lda_similarity_path)
-    weighted_manager.load_weighted_similarity_matrix(weighted_similarity_path)
-    
-    weighted_similarity_from_matrix = weighted_manager.weighted_similarity_matrix[180][30913]
-    print('Weighted similarity for [180][30913] :', weighted_similarity_from_matrix)
+    # weighted_similarity_from_matrix = weighted_manager.weighted_similarity_matrix[180][30913]
+    # print('Weighted similarity for [180][30913] :', weighted_similarity_from_matrix)
         
-    weighted_similarity = weighted_manager.get_weighted_similarity_by_id(tfidf_weight, w2v_weight, lda_weight,'65ffbfa9c1ab936c978e4dad','66858f1bc8fd49c0eaff1904')
-    print('Manual Calculated Weighted similarity for <65ffbfa9c1ab936c978e4dad>[180] and <66858f1bc8fd49c0eaff1904>[30913] :', weighted_similarity)
+    # weighted_similarity = weighted_manager.get_weighted_similarity_by_id(tfidf_weight, w2v_weight, lda_weight,'65ffbfa9c1ab936c978e4dad','66858f1bc8fd49c0eaff1904')
+    # print('Manual Calculated Weighted similarity for <65ffbfa9c1ab936c978e4dad>[180] and <66858f1bc8fd49c0eaff1904>[30913] :', weighted_similarity)
     

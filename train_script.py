@@ -33,9 +33,6 @@ if __name__ == "__main__":
     tfidf_manager = TFIDFManager()
     tfidf_input_dir = 'tfidf'  # or other directory where you save files
     if not (os.path.exists(os.path.join(tfidf_input_dir, 'tfidf_matrix.pkl')) and
-        os.path.exists(os.path.join(tfidf_input_dir, 'top_similarities.json')) and
-        os.path.exists(os.path.join(tfidf_input_dir, 'top_keywords.json')) and
-        os.path.exists(os.path.join(tfidf_input_dir, 'feature_names.pkl')) and
         os.path.exists(os.path.join(tfidf_input_dir, 'doc_id_to_index_map.json')) and
         os.path.exists(os.path.join(tfidf_input_dir, 'tfidf_vectorizer.joblib'))):
     
@@ -48,7 +45,9 @@ if __name__ == "__main__":
     print("Handling W2V model......")
     w2v_manager = Word2VecManager()
     w2v_input_dir = 'word2vec'
-    if not all(os.path.exists(os.path.join(w2v_input_dir, f)) for f in ['song_vectors.npy', 'w2v_model.model', 'top_similarities.json', 'doc_id_to_index_map.json']):
+    if not all(os.path.exists(os.path.join(w2v_input_dir, f)) for f in ['song_vectors.npy', 
+                                                                        'w2v_model.model', 
+                                                                        'doc_id_to_index_map.json']):
         print("Training W2V model...")
         w2v_manager.load_mongo_and_train()
         print("W2V model trained successful!")
@@ -57,14 +56,13 @@ if __name__ == "__main__":
     # Load Lda model
     print("Handling LDA model......")
     lda_manager = LDAModelManager()
-    num_topics = 15
     lda_input_dir = 'lda'
 
     # 检查是否存在已保存的模型文件
     if not all(os.path.exists(os.path.join(lda_input_dir, f)) for f in ['dictionary.gensim', 'corpus.mm', 'lda_model.gensim', 'texts.txt']):
-        lda_manager.load_mongo_and_train(num_topics=num_topics)
+        lda_manager.load_mongo_and_train()
         print("Training LDA model...")
-        lda_manager.load_mongo_and_train(num_topics=num_topics)
+        lda_manager.load_mongo_and_train()
         print("LDA model trained successful!")
     lda_manager.load_from_file("lda")
         
@@ -76,8 +74,7 @@ if __name__ == "__main__":
     lda_weight = 0.4
     
     weighted_manager = weightedManager(tfidf_manager,w2v_manager,lda_manager, 
-                                        tfidf_weight, w2v_weight, lda_weight, 
-                                        "tfidf/doc_id_to_index_map.json")
+                                        tfidf_weight, w2v_weight, lda_weight)
     
     # To Generate Similarity matrix
     tfidf_similarity_path = "tfidf_similarity_matrix.npz"

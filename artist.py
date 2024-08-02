@@ -123,15 +123,13 @@ class ArtistManager:
             average_vector = mean_func(lyrics)
             artist_vectors.append(average_vector)
 
-        
         # 转换为 NumPy 矩阵
         matrix = np.array(artist_vectors)
         
         os.makedirs(self.output_dir, exist_ok=True)
-
-
-        # 保存 TF-IDF 矩阵到文件
+        # 保存矩阵到文件
         np.save(os.path.join(self.output_dir, output_file), matrix)
+        print("Shape of matrix after saving:", matrix.shape)
         return matrix
     
 
@@ -277,32 +275,37 @@ if __name__ == "__main__":
     # Load lda model
     lda_manager = LDAModelManager()
     lda_manager.load_from_file("lda")
-    
+
     
     artist_manager = ArtistManager(tfidf_manager,w2v_manager,lda_manager)
     artist_manager.load_tfidf_matrix()
     artist_manager.load_w2v_matrix()
     artist_manager.load_lda_matrix()
     
-    similar_artist_tfidf = artist_manager.get_tfidf_similar_artists_by_artist("65ff82ee564ab6bcd8592ea6")
-    similar_artist_w2v = artist_manager.get_w2v_similar_artists_by_artist("65ff82ee564ab6bcd8592ea6")
-    similar_artist_lda = artist_manager.get_lda_similar_artists_by_artist("65ff82ee564ab6bcd8592ea6")
-    similar_artist_weighted = artist_manager.get_weighted_similar_artists_by_artist("65ff82ee564ab6bcd8592ea6", 0.33, 0.33, 0.34)
     
-    print(f"Similar artist for artist 65ff82ee564ab6bcd8592ea6 in TFIDF: {similar_artist_tfidf}")
-    print(f"Similar artist for artist 65ff82ee564ab6bcd8592ea6 in W2V: {similar_artist_w2v}")
-    print(f"Similar artist for artist 65ff82ee564ab6bcd8592ea6 in LDA: {similar_artist_lda}")
-    print(f"Similar artist for artist 65ff82ee564ab6bcd8592ea6 in Weighted: {similar_artist_weighted}")
+    print(artist_manager.lda_matrix.shape)
     
     
-    lyric="If he's cheatin', I'm doin' him worse (Like) No Uno, I hit the reverse (Grrah) I ain't trippin', the grip in my purse (Grrah) I don't care 'cause he did it first (Like) If he's cheatin', I'm doin' him worse (Damn) I ain't trippin', I— (I ain't trippin', I—) I ain't trippin', the grip in my purse (Like) I don't care 'cause he did it first"
-    lyric2="Honey, I'm a good man, but I'm a cheatin' man And I'll do all I can, to get a lady's love And I wanna do right, I don't wanna hurt nobody If I slip, well then I'm sorry, yes I am"
     
-    similar_artists_tfidf_lyrics = artist_manager.get_tfidf_similar_artists_by_lyrics([lyric,lyric2])
-    similar_artists_w2v_lyrics = artist_manager.get_w2v_similar_artists_by_lyrics([lyric,lyric2])
-    similar_artists_lda_lyrics = artist_manager.get_lda_similar_artists_by_lyrics([lyric,lyric2])
-    similar_artists_weight_lyrics = artist_manager.get_weighted_similar_artists_by_lyrics([lyric,lyric2], 0.33, 0.33, 0.34)
-    print(f"Similar artist for artist 65ff82ee564ab6bcd8592ea6 in TFIDF by lyrics: {similar_artists_tfidf_lyrics}")
-    print(f"Similar artist for artist 65ff82ee564ab6bcd8592ea6 in W2V by lyrics: {similar_artists_w2v_lyrics}")
-    print(f"Similar artist for artist 65ff82ee564ab6bcd8592ea6 in LDA by lyrics: {similar_artists_lda_lyrics}")
-    print(f"Similar artist for artist 65ff82ee564ab6bcd8592ea6 in Weighted by lyrics: {similar_artists_weight_lyrics}")
+    # similar_artist_tfidf = artist_manager.get_tfidf_similar_artists_by_artist("65ff82ee564ab6bcd8592ea6")
+    # similar_artist_w2v = artist_manager.get_w2v_similar_artists_by_artist("65ff82ee564ab6bcd8592ea6")
+    # similar_artist_lda = artist_manager.get_lda_similar_artists_by_artist("65ff82ee564ab6bcd8592ea6")
+    # similar_artist_weighted = artist_manager.get_weighted_similar_artists_by_artist("65ff82ee564ab6bcd8592ea6", 0.33, 0.33, 0.34)
+    
+    # print(f"Similar artist for artist 65ff82ee564ab6bcd8592ea6 in TFIDF: {similar_artist_tfidf}")
+    # print(f"Similar artist for artist 65ff82ee564ab6bcd8592ea6 in W2V: {similar_artist_w2v}")
+    # print(f"Similar artist for artist 65ff82ee564ab6bcd8592ea6 in LDA: {similar_artist_lda}")
+    # print(f"Similar artist for artist 65ff82ee564ab6bcd8592ea6 in Weighted: {similar_artist_weighted}")
+    
+    
+    # lyric="If he's cheatin', I'm doin' him worse (Like) No Uno, I hit the reverse (Grrah) I ain't trippin', the grip in my purse (Grrah) I don't care 'cause he did it first (Like) If he's cheatin', I'm doin' him worse (Damn) I ain't trippin', I— (I ain't trippin', I—) I ain't trippin', the grip in my purse (Like) I don't care 'cause he did it first"
+    # lyric2="Honey, I'm a good man, but I'm a cheatin' man And I'll do all I can, to get a lady's love And I wanna do right, I don't wanna hurt nobody If I slip, well then I'm sorry, yes I am"
+    
+    # similar_artists_tfidf_lyrics = artist_manager.get_tfidf_similar_artists_by_lyrics([lyric,lyric2])
+    # similar_artists_w2v_lyrics = artist_manager.get_w2v_similar_artists_by_lyrics([lyric,lyric2])
+    # similar_artists_lda_lyrics = artist_manager.get_lda_similar_artists_by_lyrics([lyric,lyric2])
+    # similar_artists_weight_lyrics = artist_manager.get_weighted_similar_artists_by_lyrics([lyric,lyric2], 0.33, 0.33, 0.34)
+    # print(f"Similar artist for artist 65ff82ee564ab6bcd8592ea6 in TFIDF by lyrics: {similar_artists_tfidf_lyrics}")
+    # print(f"Similar artist for artist 65ff82ee564ab6bcd8592ea6 in W2V by lyrics: {similar_artists_w2v_lyrics}")
+    # print(f"Similar artist for artist 65ff82ee564ab6bcd8592ea6 in LDA by lyrics: {similar_artists_lda_lyrics}")
+    # print(f"Similar artist for artist 65ff82ee564ab6bcd8592ea6 in Weighted by lyrics: {similar_artists_weight_lyrics}")
