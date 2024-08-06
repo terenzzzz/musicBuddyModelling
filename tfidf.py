@@ -8,7 +8,9 @@ import joblib
 import json
 from tqdm import tqdm
 from preprocessor import Preprocessor
-
+from scipy.sparse import csr_matrix
+from memory_profiler import profile
+from scipy.sparse import issparse
 
 class TFIDFManager:
     def __init__(self, mongo_uri='mongodb+srv://terence592592:592592@musicbuddy.grxyfb1.mongodb.net/', db_name='MusicBuddyVue', collection_name='tracks', output_dir='tfidf'):
@@ -160,20 +162,20 @@ class TFIDFManager:
         
         return top_words_dict
 
-    
     def get_similar_documents_for_lyrics(self, input_lyrics_list, top_n=20):
-        # 确保输入是一个列表
         if not isinstance(input_lyrics_list, list):
             input_lyrics_list = [input_lyrics_list]
-
-        # 计算平均TF-IDF向量并转换为numpy数组
+    
+        # 计算平均TF-IDF向量
         average_vector = self.compute_mean_vector(input_lyrics_list)
-    
+        average_vector_sparse = csr_matrix(average_vector.reshape(1, -1))
+        
         # 计算平均向量与所有文档的余弦相似度
-        cosine_similarities = cosine_similarity(average_vector.reshape(1, -1), self.tfidf_matrix).flatten()
-    
+        cosine_similarities = cosine_similarity(average_vector_sparse, self.tfidf_matrix).flatten()
+        
         # 获取相似度最高的top_n个文档的索引
-        top_indices = cosine_similarities.argsort()[-top_n:][::-1]
+        top_indices = np.argpartition(-cosine_similarities, top_n)[:top_n]
+        top_indices = top_indices[np.argsort(-cosine_similarities[top_indices])]
     
         # 准备结果
         similar_documents = []
