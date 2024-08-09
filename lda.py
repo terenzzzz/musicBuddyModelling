@@ -28,7 +28,7 @@ class LDAModelManager:
         self.tracks_documents = None
         self.preprocessor = Preprocessor()
         self.processed_lyrics = None
-        self.num_topic = 15
+        self.num_topic = 10
         
     def load_preprocessed_data(self):
         client = MongoClient(self.mongo_uri)
@@ -298,9 +298,8 @@ class LDAModelManager:
             json.dump(topics_list, f, ensure_ascii=False, indent=4)
 
 if __name__ == "__main__":
-    
     lda_manager = LDAModelManager()
-    num_topics = 15
+    num_topics = 10
     input_dir = 'lda'
 
     # 检查是否存在已保存的模型文件

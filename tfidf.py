@@ -110,8 +110,8 @@ class TFIDFManager:
             return False
         return True
         
-    
     def compute_top_similar_songs(self, similarity_matrix, tracks_documents, top_n=20):
+        
         num_songs = similarity_matrix.shape[0]
         similarities = cosine_similarity(similarity_matrix)
         top_similarities_json = []
@@ -134,9 +134,8 @@ class TFIDFManager:
 
         return top_similarities_json
 
-
-    
     def get_top_words_by_lyric(self, input_lyrics_list, top_n=20):
+        # 根据传入的歌词计算tfidf值最高的词(TF-IDF 值高的词代表在特定文档中具有更高的重要性)
         # 确保输入是一个列表
         if not isinstance(input_lyrics_list, list):
             input_lyrics_list = [input_lyrics_list]
@@ -161,6 +160,7 @@ class TFIDFManager:
         top_words_dict = [{'word': word, 'value': float(score)} for word, score in top_words]
         
         return top_words_dict
+
 
     def get_similar_documents_for_lyrics(self, input_lyrics_list, top_n=20):
         if not isinstance(input_lyrics_list, list):
