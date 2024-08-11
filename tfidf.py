@@ -64,7 +64,12 @@ class TFIDFManager:
         
 
         # Calculate TF-IDF using TfidfVectorizer
-        self.vectorizer = TfidfVectorizer()
+        self.vectorizer = TfidfVectorizer(
+                            max_df=0.8,              # Ignore terms that appear in more than 80% of the documents
+                            max_features=20000,      # Keep only the top 20,000 most important features
+                            stop_words='english',    # Remove English stop words
+                            sublinear_tf=True         # Apply sublinear term frequency scaling replace tf with 1 + log(tf)
+                        )
         
         print("Calculating tf_idf_matrix...")
         self.tfidf_matrix = self.vectorizer.fit_transform(self.processed_lyrics)
@@ -199,6 +204,21 @@ class TFIDFManager:
         average_vector = np.asarray(tfidf_matrix.mean(axis=0)).flatten()
         
         return average_vector
+    
+    def compute_similarity_between_two_doc(self, doc1, doc2):
+        
+        processed_doc_1 = self.preprocessor.preprocess_lyrics([doc1])
+        processed_doc_2 = self.preprocessor.preprocess_lyrics([doc2])
+        
+        tfidf_matrix_1 = self.vectorizer.transform(processed_doc_1)
+        tfidf_matrix_2 = self.vectorizer.transform(processed_doc_2)
+        
+        similarities = cosine_similarity(tfidf_matrix_1, tfidf_matrix_2)
+        
+        # 提取矩阵中的唯一值（即相似度）
+        similarity_value = similarities[0, 0]
+        return similarity_value
+        
         
 
 if __name__ == "__main__":
@@ -229,19 +249,72 @@ if __name__ == "__main__":
         print(top_words)
         
         
+        # top_words_1 = tfidf_manager.get_top_words_by_lyric([lyrics_1])
+        # top_words_2 = tfidf_manager.get_top_words_by_lyric([lyrics_2])
+        # top_words_3 = tfidf_manager.get_top_words_by_lyric([lyrics_3])
+        # print(f'Top Words for lyrics_1: {top_words_1}' )
+        # print(f'Top Words for lyrics_2: {top_words_2}' )
+        # print(f'Top Words for lyrics_3: {top_words_3}' )
         
-        # query_doc_id = '65ffc183c1ab936c978f29a8'
+        
+        # Evaluation
+        print('========================== Evaluation 1 =============================')
+        lyrics_1 = "The stars in the night sky are shining bright"
+        lyrics_2 = "Bright stars light up the dark night sky"
+        lyrics_3 = "The rain falls gently on the green grass"
+    
+        
+        
+        
+        similar_1_2 = tfidf_manager.compute_similarity_between_two_doc(lyrics_1,lyrics_2)
+        similar_1_3 = tfidf_manager.compute_similarity_between_two_doc(lyrics_1,lyrics_3)
+        similar_2_3 = tfidf_manager.compute_similarity_between_two_doc(lyrics_2,lyrics_3)
+        print(f'Similarity for lyrics_1 and lyrics_2: {similar_1_2}' )
+        print(f'Similarity for lyrics_1 and lyrics_3: {similar_1_3}' )
+        print(f'Similarity for lyrics_2 and lyrics_3: {similar_2_3}' )
+        
 
-        # similar_docs = tfidf_manager.get_similar_documents(query_doc_id)
-        # print(f"Similar documents for document {query_doc_id}:")
-        # print(similar_docs)
         
-        # top_words = tfidf_manager.get_top_words(query_doc_id)
-        # print(f"Top words for document {query_doc_id}:")
-        # print(top_words)
+        print('========================== Comprehensive TFIDF Model Evaluation =============================')
+
+        test_cases = [
+            # 1. 完全相同的歌词
+            ("I'm walking on sunshine, whoa", "I'm walking on sunshine, whoa"),
         
+            # 2. 词序略有变化
+            ("Love is in the air, everywhere I look around", "Everywhere I look around, love is in the air"),
         
+            # 3. 同义词替换
+            ("You are beautiful, you are kind", "You're gorgeous, you're nice"),
         
+            # 4. 部分重叠
+            ("Dancing in the moonlight, everybody's feeling warm and bright",
+             "Dancing in the moonlight, it's such a fine and natural sight"),
+        
+            # 5. 相似主题，不同表达
+            ("The sun goes down, the stars come out", "As daylight fades, the night sky gleams"),
+        
+            # 6. 完全不同的歌词
+            ("Twinkle, twinkle, little star", "We will rock you, rock you"),
+        
+            # 7. 重复结构，不同词汇
+            ("I love you, you love me", "She sings high, he sings low"),
+        
+            # 8. 包含常见歌词术语
+            ("Verse: The story begins\nChorus: This is our song", 
+             "First verse: Once upon a time\nChorus: Sing it loud"),
+        
+            # 9. 不同时态
+            ("I am singing in the rain", "I sang in the rain")
+        ]
+        
+        # 计算相似度
+        for i, (lyrics1, lyrics2) in enumerate(test_cases, 1):
+            similarity = tfidf_manager.compute_similarity_between_two_doc(lyrics1, lyrics2)
+            print(f'Test case {i}: Similarity = {similarity}')
+            print(f'Lyrics 1: {lyrics1}')
+            print(f'Lyrics 2: {lyrics2}')
+            print('-' * 50)
         
         
         

@@ -9,6 +9,9 @@ from tqdm import tqdm
 import os
 import time
 import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
+from gensim.models import KeyedVectors
 
 class EpochLogger:
     def __init__(self):
@@ -113,19 +116,23 @@ class Word2VecManager:
         
         epoch_logger = EpochLogger()
         
+
+        
+        
         self.w2v_model = Word2Vec(processed_lyrics, 
-                          vector_size=250, 
-                          window=8, 
-                          min_count=3, 
-                          workers=multiprocessing.cpu_count(),
-                          sg=1, 
-                          hs=1,
-                          negative=6,
-                          alpha=0.025,
-                          min_alpha=0.0001,
-                          epochs=100,
-                          callbacks=[epoch_logger],
-                          compute_loss=True)
+                                  vector_size=250,               # Dimensionality of the word vectors
+                                  window=8,                      # Maximum distance between the current and predicted word within a sentence
+                                  min_count=3,                   # Ignores all words with total frequency lower than this
+                                  workers=multiprocessing.cpu_count(),  # Number of CPU cores to use for training
+                                  sg=1,                          # Training algorithm: 1 for Skip-Gram; 0 for CBOW
+                                  hs=1,                          # If 1, hierarchical softmax will be used for model training
+                                  negative=6,                    # Number of negative samples; if > 0, negative sampling will be used
+                                  alpha=0.025,                   # The initial learning rate
+                                  min_alpha=0.0001,              # Learning rate will linearly drop to min_alpha as training progresses
+                                  epochs=100,                    # Number of iterations (epochs) over the corpus
+                                  callbacks=[epoch_logger],      # List of callbacks to be called during training (e.g., logging)
+                                  compute_loss=True)             # If True, stores loss value during training
+
         
         os.makedirs(output_dir, exist_ok=True)
         
@@ -160,6 +167,18 @@ class Word2VecManager:
             try:
                 similar_words = self.w2v_model.wv.most_similar(word, topn=topn)
                 return similar_words
+            except KeyError:
+                print(f"Word '{word}' not in vocabulary.")
+                return []
+        else:
+            print("Word2Vec model is not loaded.")
+            return []
+        
+    def get_similarity_between_words(self, word1, word2):
+        if self.w2v_model:
+            try:
+                similarity = self.w2v_model.wv.similarity(word1, word2)
+                return similarity
             except KeyError:
                 print(f"Word '{word}' not in vocabulary.")
                 return []
@@ -231,11 +250,11 @@ if __name__ == "__main__":
 
     if w2v_manager.w2v_model is not None:
         
-        lyric="If he's cheatin', I'm doin' him worse (Like) No Uno, I hit the reverse (Grrah) I ain't trippin', the grip in my purse (Grrah) I don't care 'cause he did it first (Like) If he's cheatin', I'm doin' him worse (Damn) I ain't trippin', I— (I ain't trippin', I—) I ain't trippin', the grip in my purse (Like) I don't care 'cause he did it first"
-        lyric2="Honey, I'm a good man, but I'm a cheatin' man And I'll do all I can, to get a lady's love And I wanna do right, I don't wanna hurt nobody If I slip, well then I'm sorry, yes I am"
+        # lyric="If he's cheatin', I'm doin' him worse (Like) No Uno, I hit the reverse (Grrah) I ain't trippin', the grip in my purse (Grrah) I don't care 'cause he did it first (Like) If he's cheatin', I'm doin' him worse (Damn) I ain't trippin', I— (I ain't trippin', I—) I ain't trippin', the grip in my purse (Like) I don't care 'cause he did it first"
+        # lyric2="Honey, I'm a good man, but I'm a cheatin' man And I'll do all I can, to get a lady's love And I wanna do right, I don't wanna hurt nobody If I slip, well then I'm sorry, yes I am"
         
-        similar_documents = w2v_manager.get_similar_documents_for_lyrics([lyric,lyric2])
-        print(similar_documents)
+        # similar_documents = w2v_manager.get_similar_documents_for_lyrics([lyric,lyric2])
+        # print(similar_documents)
         
         # song_vectors_matrix = np.array(w2v_manager.song_vectors)
         # print("song_vectors_matrix shape:", song_vectors_matrix.shape)
@@ -248,20 +267,11 @@ if __name__ == "__main__":
             
             
         # Testing
-        words_to_check = ['love', 'car', 'ice', 'night']
-        for word in words_to_check:
-            similar_words = w2v_manager.find_most_similar_words(word)
-            print(f"Words most similar to '{word}': {similar_words}")
+        # words_to_check = ['love', 'car', 'ice', 'night']
+        # for word in words_to_check:
+        #     similar_words = w2v_manager.find_most_similar_words(word)
+        #     print(f"Words most similar to '{word}': {similar_words}")
 
-
-        analogies = [
-            ("fire", "hot", "ice", "cold"),
-            ("sparrow", "bird", "shark", "fish")
-        ]
-        
-        for a, b, c, expected in analogies:
-            predicted = w2v_manager.w2v_model.wv.most_similar(positive=[c, b], negative=[a], topn=1)
-            print(f"{a} : {b} :: {c} : {predicted[0][0]} (expected: {expected})")
             
         # from sklearn.manifold import TSNE
 
@@ -281,6 +291,60 @@ if __name__ == "__main__":
         #     plt.annotate(word, (word_vecs_2d[i, 0], word_vecs_2d[i, 1]))
         
         # plt.show()
+        
+        print('========================== Evaluation 1 =============================')
+        # 语义相似性测试
+        similarity_love_heart = w2v_manager.get_similarity_between_words('love', 'heart')
+        similarity_song_music = w2v_manager.get_similarity_between_words('song', 'music')
+        similarity_dance_rhythm = w2v_manager.get_similarity_between_words('dance', 'rhythm')
+        similarity_happy_joy = w2v_manager.get_similarity_between_words('happy', 'joy')
+        similarity_sad_melancholy = w2v_manager.get_similarity_between_words('sad', 'melancholy')
+        
+        print(f"Similarity between 'love' and 'heart': {similarity_love_heart}")
+        print(f"Similarity between 'song' and 'music': {similarity_song_music}")
+        print(f"Similarity between 'dance' and 'rhythm': {similarity_dance_rhythm}")
+        print(f"Similarity between 'happy' and 'joy': {similarity_happy_joy}")
+        print(f"Similarity between 'sad' and 'melancholy': {similarity_sad_melancholy}")
+
+        
+        print('========================== Evaluation 2 =============================')
+        # 类比测试
+        # 计算类比
+
+        result_2 = w2v_manager.w2v_model.wv.most_similar(positive=['teacher', 'hospital'], negative=['school'], topn=1)
+        result_3 = w2v_manager.w2v_model.wv.most_similar(positive=['sun', 'night'], negative=['day'], topn=1)
+
+        print(f"Result of analogy 'teacher' - 'school' + 'hospital': {result_2}")
+        print(f"Result of analogy 'sun' - 'day' + 'night': {result_3}")
+        
+        # print('========================== Evaluation 3 =============================')
+        # # 3. 词汇嵌入可视化
+        # # 选择词汇
+        # words = ['king', 'queen', 'man', 'woman', 'cat', 'dog']
+        # word_vectors = [w2v_manager.w2v_model.wv[word] for word in words]
+        
+        # # 降维
+        # pca = PCA(n_components=2)
+        # result = pca.fit_transform(word_vectors)
+        
+        # # 可视化
+        # plt.figure(figsize=(10, 7))
+        # plt.scatter(result[:, 0], result[:, 1])
+        
+        # for i, word in enumerate(words):
+        #     plt.annotate(word, (result[i, 0], result[i, 1]))
+        
+        # plt.title('Word Vectors Visualization')
+        # plt.show()
+
+        print('========================== Evaluation 3 =============================')
+        # 词汇相似度检索
+        words_to_check = ['love', 'car', 'ice', 'night']
+        for word in words_to_check:
+            similar_words = w2v_manager.find_most_similar_words(word)
+            print(f"Words most similar to '{word}': {similar_words}")
+
+        
 
 
         

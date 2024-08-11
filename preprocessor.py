@@ -60,7 +60,8 @@ class Preprocessor:
         empty_line_count = 0
         non_empty_line_count = 0
     
-        for index, lyric in enumerate(tqdm(lyrics, desc="Processing lyrics")):
+        # for index, lyric in enumerate(tqdm(lyrics, desc="Processing lyrics")):
+        for index, lyric in enumerate(lyrics):
             stripped_lyric = lyric.strip()
             if stripped_lyric:  # 如果歌词行不为空
                 words = word_tokenize(stripped_lyric)
@@ -80,10 +81,10 @@ class Preprocessor:
                 print(f"Empty line at index {index}")  # 打印空行的索引
     
         output_count = len(processed_lyrics)
-        print(f"Input lyrics count: {input_count}")
-        print(f"Output lyrics count: {output_count}")
-        print(f"Non-empty lines processed: {non_empty_line_count}")
-        print(f"Empty lines encountered: {empty_line_count}")
+        # print(f"Input lyrics count: {input_count}")
+        # print(f"Output lyrics count: {output_count}")
+        # print(f"Non-empty lines processed: {non_empty_line_count}")
+        # print(f"Empty lines encountered: {empty_line_count}")
     
         if input_count != output_count:
             print("Warning: Input and output counts do not match!")
