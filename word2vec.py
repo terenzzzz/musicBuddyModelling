@@ -12,6 +12,9 @@ import matplotlib.pyplot as plt
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from gensim.models import KeyedVectors
+import gensim.downloader as api
+import logging
+
 
 class EpochLogger:
     def __init__(self):
@@ -116,23 +119,66 @@ class Word2VecManager:
         
         epoch_logger = EpochLogger()
         
-
-        
-        
         self.w2v_model = Word2Vec(processed_lyrics, 
-                                  vector_size=250,               # Dimensionality of the word vectors
-                                  window=8,                      # Maximum distance between the current and predicted word within a sentence
-                                  min_count=3,                   # Ignores all words with total frequency lower than this
+                                  vector_size=200,               # Dimensionality of the word vectors
+                                  window=12,                      # Maximum distance between the current and predicted word within a sentence
+                                  min_count=1,                   # Ignores all words with total frequency lower than this
                                   workers=multiprocessing.cpu_count(),  # Number of CPU cores to use for training
                                   sg=1,                          # Training algorithm: 1 for Skip-Gram; 0 for CBOW
                                   hs=1,                          # If 1, hierarchical softmax will be used for model training
                                   negative=6,                    # Number of negative samples; if > 0, negative sampling will be used
                                   alpha=0.025,                   # The initial learning rate
                                   min_alpha=0.0001,              # Learning rate will linearly drop to min_alpha as training progresses
-                                  epochs=100,                    # Number of iterations (epochs) over the corpus
+                                  epochs=60,                    # Number of iterations (epochs) over the corpus
                                   callbacks=[epoch_logger],      # List of callbacks to be called during training (e.g., logging)
                                   compute_loss=True)             # If True, stores loss value during training
 
+        
+
+        
+        
+        # # 初始化模型,但不立即训练
+        # self.w2v_model = Word2Vec(vector_size=300,
+        #                           window=10,
+        #                           min_count=3,
+        #                           workers=multiprocessing.cpu_count(),
+        #                           sg=1,
+        #                           hs=1,
+        #                           negative=6,
+        #                           alpha=0.025,
+        #                           min_alpha=0.0001,
+        #                           compute_loss=True)
+        
+        # # 构建词汇表
+        # self.w2v_model.build_vocab(self.processed_lyrics)
+        
+        # # 获取词汇表
+        # vocab = set(self.w2v_model.wv.key_to_index.keys())
+        
+        # try:
+        #     # 加载预训练向量,只保留词汇表中的词
+        #     logging.info("Loading pre-trained vectors...")
+        #     pretrained_vectors = KeyedVectors.load_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True)
+        #     pretrained_vectors = {word: pretrained_vectors[word] for word in pretrained_vectors.key_to_index.keys() & vocab}
+        #     logging.info(f"Loaded {len(pretrained_vectors)} pre-trained word vectors")
+            
+        #     # 使用预训练向量初始化
+        #     self.w2v_model.build_vocab([list(pretrained_vectors.keys())], update=True)
+        #     self.w2v_model.intersect_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True, lockf=0.0)
+            
+        # except FileNotFoundError:
+        #     logging.warning("Pre-trained vector file not found. Training from scratch.")
+        # except Exception as e:
+        #     logging.error(f"An error occurred while loading pre-trained vectors: {str(e)}")
+        
+        # # 训练模型
+        # logging.info("Training Word2Vec model...")
+        # self.w2v_model.train(self.processed_lyrics, 
+        #                      total_examples=self.w2v_model.corpus_count, 
+        #                      epochs=80, 
+        #                      callbacks=[epoch_logger])
+        
+        # logging.info("Model training completed")
         
         os.makedirs(output_dir, exist_ok=True)
         
@@ -180,7 +226,7 @@ class Word2VecManager:
                 similarity = self.w2v_model.wv.similarity(word1, word2)
                 return similarity
             except KeyError:
-                print(f"Word '{word}' not in vocabulary.")
+                print(f"Word not in vocabulary.")
                 return []
         else:
             print("Word2Vec model is not loaded.")
@@ -233,6 +279,16 @@ class Word2VecManager:
         average_vector = np.mean(input_vectors, axis=0)
         
         return average_vector
+    
+    def get_similarity_between_lyrics(self, lyrics_1, lyrics_2):
+        vector_1 = self.compute_mean_vector([lyrics_1])
+        vector_2 = self.compute_mean_vector([lyrics_2])
+
+        # 计算两个向量的余弦相似度
+        cosine_sim = cosine_similarity([vector_1], [vector_2])[0][0]
+    
+        return cosine_sim
+    
     
 
 if __name__ == "__main__":
@@ -292,57 +348,79 @@ if __name__ == "__main__":
         
         # plt.show()
         
+        
+        pre_trained_model = api.load("word2vec-google-news-300")
         print('========================== Evaluation 1 =============================')
-        # 语义相似性测试
-        similarity_love_heart = w2v_manager.get_similarity_between_words('love', 'heart')
-        similarity_song_music = w2v_manager.get_similarity_between_words('song', 'music')
-        similarity_dance_rhythm = w2v_manager.get_similarity_between_words('dance', 'rhythm')
-        similarity_happy_joy = w2v_manager.get_similarity_between_words('happy', 'joy')
-        similarity_sad_melancholy = w2v_manager.get_similarity_between_words('sad', 'melancholy')
+        print(f"词汇表大小: {len(w2v_manager.w2v_model.wv.key_to_index)}")
         
-        print(f"Similarity between 'love' and 'heart': {similarity_love_heart}")
-        print(f"Similarity between 'song' and 'music': {similarity_song_music}")
-        print(f"Similarity between 'dance' and 'rhythm': {similarity_dance_rhythm}")
-        print(f"Similarity between 'happy' and 'joy': {similarity_happy_joy}")
-        print(f"Similarity between 'sad' and 'melancholy': {similarity_sad_melancholy}")
-
+        word_pairs = [
+            # 上下文词对
+            ('ocean', 'wave'),
+            ('sun', 'shine'),
+            ('stage', 'performance'),
+            ('city', 'street'),
+            ('night', 'star'),
         
-        print('========================== Evaluation 2 =============================')
-        # 类比测试
-        # 计算类比
-
-        result_2 = w2v_manager.w2v_model.wv.most_similar(positive=['teacher', 'hospital'], negative=['school'], topn=1)
-        result_3 = w2v_manager.w2v_model.wv.most_similar(positive=['sun', 'night'], negative=['day'], topn=1)
-
-        print(f"Result of analogy 'teacher' - 'school' + 'hospital': {result_2}")
-        print(f"Result of analogy 'sun' - 'day' + 'night': {result_3}")
+            # 同义词和近义词
+            ('love', 'affection'),
+            ('sadness', 'sorrow'),
+            ('joy', 'happiness'),
+            ('song', 'melody'),
+            ('hope', 'optimism'),
         
-        # print('========================== Evaluation 3 =============================')
-        # # 3. 词汇嵌入可视化
-        # # 选择词汇
-        # words = ['king', 'queen', 'man', 'woman', 'cat', 'dog']
-        # word_vectors = [w2v_manager.w2v_model.wv[word] for word in words]
+            # 反义词和对比词对
+            ('love', 'hate'),
+            ('light', 'darkness'),
+            ('joy', 'sorrow'),
+            ('freedom', 'captivity'),
+            ('peace', 'conflict'),
         
-        # # 降维
-        # pca = PCA(n_components=2)
-        # result = pca.fit_transform(word_vectors)
+        ]
         
-        # # 可视化
-        # plt.figure(figsize=(10, 7))
-        # plt.scatter(result[:, 0], result[:, 1])
         
-        # for i, word in enumerate(words):
-        #     plt.annotate(word, (result[i, 0], result[i, 1]))
+        # 测试并打印每对词的相似性
+        for word1, word2 in word_pairs:
+            similarity = w2v_manager.get_similarity_between_words(word1, word2)
+            google_news_similarity = pre_trained_model.similarity(word1, word2)
+            print(f"'{word1}' : '{word2}' = {similarity} : {google_news_similarity}")
+            
         
-        # plt.title('Word Vectors Visualization')
-        # plt.show()
-
         print('========================== Evaluation 3 =============================')
         # 词汇相似度检索
-        words_to_check = ['love', 'car', 'ice', 'night']
+        words_to_check = ['love', 'car', 'ice', 'night', 'gun']
         for word in words_to_check:
             similar_words = w2v_manager.find_most_similar_words(word)
             print(f"Words most similar to '{word}': {similar_words}")
+            
+            # google_similar_words = pre_trained_model.most_similar(word)
+            # print(f"Words most similar for google to '{word}': {google_similar_words}")
+            
+        
+        
+        print('========================== Evaluation 4 =============================')
+        # 歌词相似度
+        # 定义测试歌词
+        lyrics_similar_1 = "Underneath the starlit sky, we walk hand in hand, Your smile lights up the night, making my heart expand. Every touch and every glance feels like a sweet embrace, In the timeless dance of love, we find our sacred space."
+        lyrics_similar_2 = "In the quiet of the evening, we share our dreams and fears, Your laughter is my melody, calming all my tears. Every whisper in the dark is a promise, soft and true, In this endless night of love, I find my world in you."
+        lyrics_contrasting = "In the hustle of the city, where the noise never fades, We navigate through daily trials, in a world that never sways. Every challenge and every setback is a step towards the goal, In the fast pace of life, we strive to find our role."
+        
+        
+        similarity_1_2 = w2v_manager.get_similarity_between_lyrics(lyrics_similar_1,lyrics_similar_2)
+        similarity_1_3 = w2v_manager.get_similarity_between_lyrics(lyrics_similar_1,lyrics_contrasting)
+        similarity_2_3 = w2v_manager.get_similarity_between_lyrics(lyrics_similar_2,lyrics_contrasting)
+        print(similarity_1_2)
+        print(similarity_1_3)
+        print(similarity_2_3)
+        
+        
+
+
+
+            
+
+
+
+        
 
         
 

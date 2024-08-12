@@ -77,14 +77,14 @@ if __name__ == "__main__":
                                         tfidf_weight, w2v_weight, lda_weight)
     
     # To Generate Similarity matrix
-    tfidf_similarity_path = "tfidf_similarity_matrix.npz"
-    w2v_similarity_path = "w2v_similarity_matrix.npz"
-    lda_similarity_path = "lda_similarity_matrix.npz"
-    weighted_similarity_path = "weighted_similarity.npz"
+    # tfidf_similarity_path = "tfidf_similarity_matrix.npz"
+    # w2v_similarity_path = "w2v_similarity_matrix.npz"
+    # lda_similarity_path = "lda_similarity_matrix.npz"
+    # weighted_similarity_path = "weighted_similarity.npz"
     
     
-    weighted_manager.load_similarity_matrix(tfidf_similarity_path, w2v_similarity_path, lda_similarity_path)
-    weighted_manager.load_weighted_similarity_matrix(weighted_similarity_path)
+    # weighted_manager.load_similarity_matrix(tfidf_similarity_path, w2v_similarity_path, lda_similarity_path)
+    # weighted_manager.load_weighted_similarity_matrix(weighted_similarity_path)
     
     # Load Artist
     print("Handling Artist ......")
