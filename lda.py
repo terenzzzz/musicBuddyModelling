@@ -29,7 +29,7 @@ class LDAModelManager:
         self.tracks_documents = None
         self.preprocessor = Preprocessor()
         self.processed_lyrics = None
-        self.num_topic = 10
+        self.num_topic = 7
         
     def load_preprocessed_data(self):
         client = MongoClient(self.mongo_uri)
@@ -76,12 +76,25 @@ class LDAModelManager:
         doc_ids = [str(doc['_id']) for doc in self.tracks_documents]
         self.doc_id_to_index_map = {doc_id: idx for idx, doc_id in enumerate(doc_ids)}
         
+        
+        # 定义回调函数
+        coherence_callback = CoherenceMetric(
+            corpus=self.corpus,
+            dictionary=self.dictionary,
+            coherence='u_mass'
+        )
+        
+        
         self.lda_model = gensim.models.ldamodel.LdaModel(
-            corpus=self.corpus, 
-            num_topics=self.num_topic, 
-            id2word=self.dictionary, 
-            alpha='auto', eta='auto', 
-            passes=100
+            corpus=self.corpus,
+            num_topics=self.num_topic,
+            id2word=self.dictionary,
+            alpha='auto',  # 自动
+            eta='auto',     # 自动调整词分布先验
+            passes=120,
+            iterations=120,
+            random_state=42,     # 设置随机种子以复现结果
+            callbacks=[coherence_callback]  # 添加回调函数
         )
         
         self.doc_topic_matrix = self.get_document_topic_matrix()
@@ -387,16 +400,36 @@ if __name__ == "__main__":
     
     
     
-        print('========================== Evaluation 1 =============================')
-        lyrics_similar_1 = "Underneath the starlit sky, we walk hand in hand, Your smile lights up the night, making my heart expand. Every touch and every glance feels like a sweet embrace, In the timeless dance of love, we find our sacred space."
-        lyrics_similar_2 = "In the quiet of the evening, we share our dreams and fears, Your laughter is my melody, calming all my tears. Every whisper in the dark is a promise, soft and true, In this endless night of love, I find my world in you."
-        lyrics_contrasting = "In the hustle of the city, where the noise never fades, We navigate through daily trials, in a world that never sways. Every challenge and every setback is a step towards the goal, In the fast pace of life, we strive to find our role."
+        # print('========================== Evaluation 1 =============================')
+        # lyrics_similar_1 = "Underneath the starlit sky, we walk hand in hand, Your smile lights up the night, making my heart expand. Every touch and every glance feels like a sweet embrace, In the timeless dance of love, we find our sacred space."
+        # lyrics_similar_2 = "In the quiet of the evening, we share our dreams and fears, Your laughter is my melody, calming all my tears. Every whisper in the dark is a promise, soft and true, In this endless night of love, I find my world in you."
+        # lyrics_contrasting = "In the hustle of the city, where the noise never fades, We navigate through daily trials, in a world that never sways. Every challenge and every setback is a step towards the goal, In the fast pace of life, we strive to find our role."
         
         
-        similarity_1_2 = lda_manager.get_similarity_between_lyrics(lyrics_similar_1,lyrics_similar_2)
-        similarity_1_3 = lda_manager.get_similarity_between_lyrics(lyrics_similar_1,lyrics_contrasting)
-        similarity_2_3 = lda_manager.get_similarity_between_lyrics(lyrics_similar_2,lyrics_contrasting)
-        print(similarity_1_2)
-        print(similarity_1_3)
-        print(similarity_2_3)
+        # similarity_1_2 = lda_manager.get_similarity_between_lyrics(lyrics_similar_1,lyrics_similar_2)
+        # similarity_1_3 = lda_manager.get_similarity_between_lyrics(lyrics_similar_1,lyrics_contrasting)
+        # similarity_2_3 = lda_manager.get_similarity_between_lyrics(lyrics_similar_2,lyrics_contrasting)
+        # print(similarity_1_2)
+        # print(similarity_1_3)
+        # print(similarity_2_3)
+        
+        print('========================== Evaluation 2 =============================')
+        
+        lyrics = {
+            "0: Religion": "I kneel in prayer, feeling the heavens' grace. Guided by god, I walk in the light of divine.",
+            "1: Daily Life": "Morning coffee and the hum of daily chores. Simple routines bring peace and comfort to my core.",
+            "2: Street Culture": "In dark alleys, the sound of gun shoot echoes loud. Money rules the streets, where fear wears a shroud.",
+            "3: Mortality": "The clock ticks down, a reminder of our fate. Each moment lived is another step towards the final gate.",
+            "4: Nature": "A gentle breeze carries whispers from the trees. The mountains stand tall, under the sky's endless seas.",
+            "5: Romance": "I kiss her on the lips in the night. This sweet girl is my world, my love, my life.",
+            "6: Emotions": "Laughter echoes through tears, a bittersweet mix. My heart feels every joy and sorrow life brings.",
+            "7: Celebration": "Raise your glass, let’s dance through the night. Celebrate this moment, under the vibrant city lights.",
+            "8: Conflict": "Words cut deep, like daggers in the dark. Our fight lingers, leaving scars in my heart.",
+            "9: Adventure": "Pack your bags, let's chase the horizon's glow. Every road we take, a new story to show."
+        }
+        
+        for theme, lyric in lyrics.items():
+            topic = lda_manager.get_topics_by_lyric([lyric])
+            print(f'Predict topics distribusion for {theme}: {topic[0]}')
+            print()
         
