@@ -31,7 +31,7 @@ python train_script.py
 ```
 ## Reset Model
 ```sh
-python model_reset_script.py.py
+python model_reset_script.py
 ```
 ## Start Service
 ```sh
