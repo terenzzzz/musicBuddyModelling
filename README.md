@@ -1,6 +1,8 @@
 ## MusicBuddy Recommendation system
 This project trained TF-IDF Word2Vec and LDA models for input lyrics dataset to give music recommendation service base on lyrics. 
 
+## Database
+This projec using mongodb as database to import lyrics in model training, set in each model files.
 
 ## Library
 | 库名称        | 版本号   |
@@ -15,6 +17,9 @@ This project trained TF-IDF Word2Vec and LDA models for input lyrics dataset to 
 | flask_cors    | 4.0.1    |
 | nltk          | 3.8.1    |
 | scikit-learn  | 1.5.0    |
+```sh
+pip install numpy==1.26.4 scipy==1.10.1 gensim==4.3.2 pymongo==4.8.0
+```
 
 ## Python Version
 ```sh
