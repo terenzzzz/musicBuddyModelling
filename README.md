@@ -19,6 +19,8 @@ This projec using mongodb as database to import lyrics in model training, set in
 | scikit-learn  | 1.5.0    |
 ```sh
 pip install numpy==1.26.4 scipy==1.10.1 gensim==4.3.2 pymongo==4.8.0
+
+python nltkDownloader.py
 ```
 
 ## Python Version
